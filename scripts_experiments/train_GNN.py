@@ -1,17 +1,21 @@
+from data.chem_graph import molecular_graph
 from data.rhcaa import rhcaa_diene
+import streamlit as st
+import plotly.graph_objects as go
 import sys
 import os
 import torch
 import time
 from copy import deepcopy
 from call_methods import make_network, create_loaders
-from utils.utils_model import train_network, eval_network, network_report, network_outer_report
+from utils.utils_model import train_network, eval_network, \
+    network_report, network_outer_report, generate_st_report
 from icecream import ic
 
 sys.path.append(os.path.dirname(os.path.abspath(__file__)))
 
 
-def train_network_nested_cv(opt) -> None:
+def train_GNNet(opt, file) -> None:
 
     print('Initialising chiral diene ligands experiment using early stopping')
 
@@ -22,22 +26,49 @@ def train_network_nested_cv(opt) -> None:
     device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
 
     # Create the dataset
-    data = rhcaa_diene(opt, opt.filename, opt.mol_cols, root=opt.root)
-    ic(data[0])
-    ic(data[0].x)
+    data = rhcaa_diene(opt = opt, 
+                           filename = opt.filename,
+                           molcols = opt.mol_cols, 
+                           root=opt.root,
+                           file=file)
 
-    # Create the loaders and nested cross validation iterators
+
+    if opt.split_type == 'tvt':
+        max_outer = 2
+        max_inner = 2
+        TOT_RUNS = 1
+
+    elif opt.split_type == 'cv':
+        max_outer = 2
+        max_inner = opt.folds
+        TOT_RUNS = opt.folds-1
+
+    elif opt.split_type == 'ncv':
+        max_outer = opt.folds+1
+        max_inner = opt.folds
+        TOT_RUNS = opt.folds*(opt.folds-1)
+
     ncv_iterators = create_loaders(data, opt)
 
     # Initiate the counter of the total runs
     counter = 0
-    TOT_RUNS = opt.folds*(opt.folds-1)
 
     # Loop through the nested cross validation iterators
     # The outer loop is for the outer fold or test fold
-    for outer in range(1, opt.folds+1):
+    for outer in range(1, max_outer):
         # The inner loop is for the inner fold or validation fold
-        for inner in range(1, opt.folds):
+        for inner in range(1, max_inner):
+
+            fig = go.Figure()
+            fig.add_trace(go.Scatter(x=[], y=[], mode='lines', name='Train Loss', line=dict(color='blue')))
+            fig.add_trace(go.Scatter(x=[], y=[], mode='lines', name='Validation Loss', line=dict(color='green')))
+            fig.add_trace(go.Scatter(x=[], y=[], mode='lines', name='Test Loss', line=dict(color='red')))
+            fig.update_layout(
+                xaxis_title="Epoch",
+                yaxis_title="Loss",
+                title="Learning Curve"
+            )
+            plot_placeholder = st.empty()
 
             # Inner fold is incremented by 1 to avoid having same inner and outer fold number for logging purposes
             real_inner = inner +1 if outer <= inner else inner
@@ -46,14 +77,17 @@ def train_network_nested_cv(opt) -> None:
             val_best_loss = 1000
             early_stopping_counter = 0
             best_epoch = 0
+
             # Increment the counter
             counter += 1
             # Get the data loaders
             train_loader, val_loader, test_loader = next(ncv_iterators)
+
             # Initiate the lists to store the losses
             train_list, val_list, test_list = [], [], []
+
             # Create the GNN model
-            model = make_network(network_name = "GCN",
+            model = make_network(network_name = opt.network_name,
                                  opt = opt, 
                                  n_node_features= data.num_node_features).to(device)
             
@@ -69,8 +103,9 @@ def train_network_nested_cv(opt) -> None:
                     val_loss = eval_network(model, val_loader, device)
                     test_loss = eval_network(model, test_loader, device)  
 
-                    print('{}/{}-Epoch {:03d} | Train loss: {:.3f} kJ/mol | Validation loss: {:.3f} kJ/mol | '             
-                        'Test loss: {:.3f} kJ/mol'.format(counter, TOT_RUNS, epoch, train_loss, val_loss, test_loss))
+                    print('{}/{}-Epoch {:03d} | Train loss: {:.3f} {} | Validation loss: {:.3f} {} | '             
+                        'Test loss: {:.3f} {}'.format(counter, TOT_RUNS, epoch, train_loss, opt.target_variable_units, 
+                                                          val_loss, opt.target_variable_units, test_loss, opt.target_variable_units))
                     
                     # Model performance is evaluated every 5 epochs
                     if epoch % 5 == 0:
@@ -80,6 +115,15 @@ def train_network_nested_cv(opt) -> None:
                         train_list.append(train_loss)
                         val_list.append(val_loss)
                         test_list.append(test_loss)
+
+                        fig.data[0].x = list(range(0, epoch, 5))
+                        fig.data[0].y = train_list
+                        fig.data[1].x = list(range(0, epoch, 5))
+                        fig.data[1].y = val_list
+                        fig.data[2].x = list(range(0, epoch, 5))
+                        fig.data[2].y = test_list
+
+                        plot_placeholder.plotly_chart(fig, use_container_width=True)
                         
                         # Save the model if the validation loss is the best
                         if val_loss < val_best_loss:
@@ -89,9 +133,25 @@ def train_network_nested_cv(opt) -> None:
                             print('New best validation loss: {:.4f} found at epoch {}'.format(val_best_loss, best_epoch))
                             # Save the  best model parameters
                             best_model_params = deepcopy(model.state_dict())
+
                         else:
                             # Early stopping counter is incremented
                             early_stopping_counter += 1
+
+
+                        # Remove the old vertical line trace if it exists
+                        if len(fig.data) > 3:
+                            fig.data = fig.data[:3]
+
+                        # Update the vertical line
+                        fig.add_trace(go.Scatter(
+                            x=[best_epoch, best_epoch],
+                            y=[0, max(*train_list, *val_list, *test_list)],
+                            mode='lines',
+                            name='Best Validation Loss (Saved Model)',
+                            line=dict(color="orange", width=2, dash="dashdot"),
+                            hoverinfo='skip'
+                        ))
 
                     if epoch == opt.epochs:
                         print('Maximum number of epochs reached')
@@ -110,18 +170,24 @@ def train_network_nested_cv(opt) -> None:
 
             print('---------------------------------')
 
-            # Report the model performance
-            network_report(
-                log_dir=f"{opt.log_dir_results}/{opt.filename[:-4]}/results_GNN/",
-                loaders=(train_loader, val_loader, test_loader),
-                outer=outer,
-                inner=real_inner,
-                loss_lists=(train_list, val_list, test_list),
-                save_all=True,
-                model=model,
-                model_params=best_model_params,
-                best_epoch=best_epoch,
+            report = generate_st_report(opt=opt,
+                                        loaders=(train_loader, val_loader, test_loader),
+                                        model=model,
+                                        model_params=best_model_params,
+                                        )
+            
+            st.header("Training Report")
+            st.text(report)
+
+            st.download_button(
+                label="Download Report as TXT",
+                data=report,
+                file_name="training_report.txt",
+                mime="text/plain",
             )
+
+            # Report the model performance
+
 
             # Reset the variables of the training
             del model, train_loader, val_loader, test_loader, train_list, val_list, test_list, best_model_params, best_epoch
@@ -140,5 +206,5 @@ def train_network_nested_cv(opt) -> None:
     
 
 if __name__ == "__main__":
-    train_network_nested_cv()
+    train_network()
 

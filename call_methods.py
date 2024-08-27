@@ -2,6 +2,8 @@ import argparse
 from copy import copy, deepcopy
 from torch_geometric.loader import DataLoader
 
+from icecream import ic
+
 
 
 def make_network(network_name: str, opt: argparse.Namespace, n_node_features: int):
@@ -32,16 +34,46 @@ def create_loaders(dataset, opt: argparse.Namespace):
     batch_size = opt.batch_size
     folds = opt.folds
 
-    folds = [[] for _ in range(folds)]
-    for data in dataset:
-        folds[data.fold].append(data)
+    if opt.split_type == 'tvt':
+        folds = [[] for _ in range(3)]
 
-    for outer in range(len(folds)):
+        for data in dataset:
+            folds[int(data.fold)].append(data)
+        
         proxy = copy(folds)
-        test_loader = DataLoader(proxy.pop(outer), batch_size=batch_size, shuffle=False)
-        for inner in range(len(proxy)):  # length is reduced by 1 here
-            proxy2 = copy(proxy)
-            val_loader = DataLoader(proxy2.pop(inner), batch_size=batch_size, shuffle=False)
-            flatten_training = [item for sublist in proxy2 for item in sublist]  # flatten list of lists
-            train_loader = DataLoader(flatten_training, batch_size=batch_size, shuffle=True)
-            yield deepcopy((train_loader, val_loader, test_loader))
+        test_loader = DataLoader(proxy.pop(0), batch_size=batch_size, shuffle=False)
+        val_loader = DataLoader(proxy.pop(0), batch_size=batch_size, shuffle=False)
+        flatten_training = [item for sublist in proxy for item in sublist]  # flatten list of lists
+        train_loader = DataLoader(flatten_training, batch_size=batch_size, shuffle=True)
+        yield deepcopy((train_loader, val_loader, test_loader))
+
+    elif opt.split_type == 'cv':
+        folds = [[] for _ in range(folds)]
+        for data in dataset:
+            folds[data.fold].append(data)
+
+        for outer in range(1):
+            proxy = copy(folds)
+            test_loader = DataLoader(proxy.pop(outer), batch_size=batch_size, shuffle=False)
+            for inner in range(len(proxy)):  # length is reduced by 1 here
+                proxy2 = copy(proxy)
+                val_loader = DataLoader(proxy2.pop(inner), batch_size=batch_size, shuffle=False)
+                flatten_training = [item for sublist in proxy2 for item in sublist]  # flatten list of lists
+                train_loader = DataLoader(flatten_training, batch_size=batch_size, shuffle=True)
+                yield deepcopy((train_loader, val_loader, test_loader))
+
+
+    elif opt.split_type == 'ncv':
+        folds = [[] for _ in range(folds)]
+        for data in dataset:
+            folds[data.fold].append(data)
+
+        for outer in range(len(folds)):
+            proxy = copy(folds)
+            test_loader = DataLoader(proxy.pop(outer), batch_size=batch_size, shuffle=False)
+            for inner in range(len(proxy)):  # length is reduced by 1 here
+                proxy2 = copy(proxy)
+                val_loader = DataLoader(proxy2.pop(inner), batch_size=batch_size, shuffle=False)
+                flatten_training = [item for sublist in proxy2 for item in sublist]  # flatten list of lists
+                train_loader = DataLoader(flatten_training, batch_size=batch_size, shuffle=True)
+                yield deepcopy((train_loader, val_loader, test_loader))

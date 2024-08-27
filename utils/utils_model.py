@@ -17,9 +17,9 @@ from icecream import ic
 from sklearn.preprocessing import RobustScaler
 
 
-def calculate_metrics(y_true:list, y_predicted: list,  task = 'r'):
+def calculate_metrics(y_true:list, y_predicted: list, task:str):
 
-    if task == 'r':
+    if task == 'regression':
         r2 = r2_score(y_true=y_true, y_pred=y_predicted)
         mae = mean_absolute_error(y_true=y_true, y_pred=y_predicted)
         rmse = sqrt(mean_squared_error(y_true=y_true, y_pred=y_predicted))  
@@ -31,7 +31,7 @@ def calculate_metrics(y_true:list, y_predicted: list,  task = 'r'):
         metrics = [r2, mae, rmse, mbe, mape, error_std]
         metrics_names = ['R2', 'MAE', 'RMSE', 'Mean Bias Error', 'Mean Absolute Percentage Error', 'Error Standard Deviation']
 
-    elif task == 'c':
+    elif task == 'classification':
         accuracy = accuracy_score(y_true=y_true, y_pred=y_predicted)
         precision = precision_score(y_true=y_true, y_pred=y_predicted)
         recall = recall_score(y_true=y_true, y_pred=y_predicted)
@@ -113,6 +113,59 @@ def predict_network(model, loader, return_emb = False):
         return y_pred, y_true, idx, embeddings
     else:
         return y_pred, y_true, idx
+
+
+def generate_st_report(opt,
+                       loaders,
+                       model,
+                       model_params,
+                       ):
+    report = []
+
+    report.append("Training Report\n")
+    report.append("====================\n\n")
+
+    today = date.today()
+    today_str = str(today.strftime("%d-%b-%Y"))
+    time = str(datetime.now())[11:]
+    time = time[:8]
+
+    report.append("{}, {}\n".format(today_str, time))
+
+    train_loader, val_loader, test_loader = loaders[0], loaders[1], loaders[2]
+
+    N_train, N_val, N_test = len(train_loader.dataset), len(val_loader.dataset), len(test_loader.dataset)
+    N_tot = N_train + N_val + N_test  
+
+    model.load_state_dict(model_params)
+    y_pred, y_true, idx, emb_train = predict_network(model, train_loader, True)
+
+    metrics, metrics_names = calculate_metrics(y_true, y_pred, task = opt.problem_type)
+
+    report.append("Training set\n")
+    report.append("Set size = {}\n".format(N_train))
+    report.extend([f"{Metric} = {Value}\n" for Metric, Value in zip(metrics_names, metrics)])
+
+    y_pred, y_true, idx, emb_val = predict_network(model, val_loader, True)
+
+    metrics, metrics_names = calculate_metrics(y_true, y_pred, task = opt.problem_type)
+
+    report.append("Validation set\n")
+    report.append("Set size = {}\n".format(N_val))
+    report.extend([f"{Metric} = {Value}\n" for Metric, Value in zip(metrics_names, metrics)])
+
+    y_pred, y_true, idx, emb_test = predict_network(model, test_loader, True)
+
+    emb_all = pd.concat([emb_train, emb_val, emb_test], axis=0)
+
+    report.append("Test set\n")
+    report.append("Set size = {}\n".format(N_test))
+
+    metrics, metrics_names = calculate_metrics(y_true, y_pred, task = opt.problem_type)
+
+    report.extend([f"{Metric} = {Value}\n" for Metric, Value in zip(metrics_names, metrics)])
+
+    return "".join(report)
 
 
 def network_report(log_dir,

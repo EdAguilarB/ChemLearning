@@ -156,6 +156,21 @@ class BaseOptions:
         ###########################################
         #########Smiles columns in dataset#########
         ###########################################
+
+        self.parser.add_argument(
+            '--target_variable',
+            type=str,
+            default='%top',
+            help='target variable to predict',
+            )
+        
+        self.parser.add_argument(
+            '--target_variable_units',
+            type=str,
+            default='kJ/mol',
+            help='target variable to predict',
+            )
+
         self.parser.add_argument(
             '--mol_cols',
             type=str,
@@ -167,6 +182,41 @@ class BaseOptions:
         ###########################################
         ############Training Options GNN###########
         ###########################################
+
+        self.parser.add_argument(
+            '--network_name',
+            type=str,
+            default='GCN',
+            help='Name of the network',
+            )
+        
+        self.parser.add_argument(
+            '--split_type',
+            type=str,
+            default='ncv',
+            help='Type of split. Allowed values: tvt (train/val/test), cv (cross validation), or ncv (nested cross validation)',
+            )
+        
+        self.parser.add_argument(
+            '--split_method',
+            type=str,
+            default='stratified',
+            help='Method to split the data. Allowed values: random or stratified',
+            )
+        
+        self.parser.add_argument(
+            '--test_size',
+            type=float,
+            default=0.2,
+            help='Size of the test set',
+            )
+        
+        self.parser.add_argument(
+            '--val_size',
+            type=float,
+            default=0.2,
+            help='Size of the validation set',
+            )
         
         self.parser.add_argument(
             '--folds',
@@ -214,7 +264,7 @@ class BaseOptions:
             '--problem_type',
             type=str,
             default='regression',
-            help='Type of problem',
+            help='Type of problem. Allowed values: classification or regression',
             )
         
         self.parser.add_argument(
