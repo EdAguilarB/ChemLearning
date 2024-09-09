@@ -5,6 +5,7 @@ import re
 import pickle
 import numpy as np
 from datetime import date, datetime
+import streamlit as st
 from copy import copy, deepcopy
 from sklearn.linear_model import LinearRegression
 from sklearn.ensemble import RandomForestRegressor, GradientBoostingRegressor
@@ -115,14 +116,24 @@ def predict_network(model, loader, return_emb = False):
         return y_pred, y_true, idx
 
 
-def generate_st_report(opt,
-                       loaders,
-                       model,
-                       model_params,
-                       ):
+def generate_st_report(opt, 
+                       loaders, 
+                       model, 
+                       model_params, 
+                       inner = None,
+                       outer =  None,):
+    
+    
+    if opt.split_type == 'tvt':
+        title = 'Training Report'
+    elif opt.split_type == 'cv':
+        title = 'Training Report Using Fold {} as Validation Set'.format(inner)
+    elif opt.split_type == 'ncv':
+        title = 'Report for Test Set Fold {} and Validation Set {}'.format(outer, inner)
+
     report = []
 
-    report.append("Training Report\n")
+    report.append(f"{title}\n")
     report.append("====================\n\n")
 
     today = date.today()
@@ -138,34 +149,98 @@ def generate_st_report(opt,
     N_tot = N_train + N_val + N_test  
 
     model.load_state_dict(model_params)
-    y_pred, y_true, idx, emb_train = predict_network(model, train_loader, True)
 
-    metrics, metrics_names = calculate_metrics(y_true, y_pred, task = opt.problem_type)
+    # Predict and get embeddings for training set
+    y_pred_train, y_true_train, idx_train, emb_train = predict_network(model, train_loader, True)
+    train_results = pd.DataFrame({f'real_{opt.target_variable_name}': y_true_train, f'predicted_{opt.target_variable_name}': y_pred_train, 'index': idx_train})
+    train_results['set'] = 'Training'
+    metrics_train, metrics_names = calculate_metrics(y_true_train, y_pred_train, task=opt.problem_type)
 
     report.append("Training set\n")
     report.append("Set size = {}\n".format(N_train))
-    report.extend([f"{Metric} = {Value}\n" for Metric, Value in zip(metrics_names, metrics)])
+    report.extend([f"{Metric} = {Value}\n" for Metric, Value in zip(metrics_names, metrics_train)])
 
-    y_pred, y_true, idx, emb_val = predict_network(model, val_loader, True)
-
-    metrics, metrics_names = calculate_metrics(y_true, y_pred, task = opt.problem_type)
+    # Predict and get embeddings for validation set
+    y_pred_val, y_true_val, idx_val, emb_val = predict_network(model, val_loader, True)
+    val_results = pd.DataFrame({f'real_{opt.target_variable_name}': y_true_val, f'predicted_{opt.target_variable_name}': y_pred_val, 'index': idx_val})
+    val_results['set'] = 'Validation'
+    metrics_val, metrics_names = calculate_metrics(y_true_val, y_pred_val, task=opt.problem_type)
 
     report.append("Validation set\n")
     report.append("Set size = {}\n".format(N_val))
-    report.extend([f"{Metric} = {Value}\n" for Metric, Value in zip(metrics_names, metrics)])
+    report.extend([f"{Metric} = {Value}\n" for Metric, Value in zip(metrics_names, metrics_val)])
 
-    y_pred, y_true, idx, emb_test = predict_network(model, test_loader, True)
-
-    emb_all = pd.concat([emb_train, emb_val, emb_test], axis=0)
+    # Predict and get embeddings for test set
+    y_pred_test, y_true_test, idx_test, emb_test = predict_network(model, test_loader, True)
+    test_results = pd.DataFrame({f'real_{opt.target_variable_name}': y_true_test, f'predicted_{opt.target_variable_name}': y_pred_test, 'index': idx_test})
+    test_results['set'] = 'Test'
+    metrics_test, metrics_names = calculate_metrics(y_true_test, y_pred_test, task=opt.problem_type)
 
     report.append("Test set\n")
     report.append("Set size = {}\n".format(N_test))
+    report.extend([f"{Metric} = {Value}\n" for Metric, Value in zip(metrics_names, metrics_test)])
 
-    metrics, metrics_names = calculate_metrics(y_true, y_pred, task = opt.problem_type)
+    report.append("\n\n")
+    report.append("---------------------------------------------------------\n")
+    report.append("\n\n")
 
-    report.extend([f"{Metric} = {Value}\n" for Metric, Value in zip(metrics_names, metrics)])
+    if opt.problem_type == 'regression':
+        fig = go.Figure()
 
-    return "".join(report)
+        fig.add_trace(go.Scatter(x=y_true_train, 
+                                 y=y_pred_train, 
+                                 mode='markers', 
+                                 name='Training set', 
+                                 marker=dict(color='blue'),
+                                 text=[f"Index: {idx}" for idx in idx_train],
+                                 hoverinfo='text+x+y'))
+        
+        fig.add_trace(go.Scatter(x=y_true_val,
+                                    y=y_pred_val,
+                                    mode='markers',
+                                    name='Validation set',
+                                    marker=dict(color='orange'),
+                                    text=[f"Index: {idx}" for idx in idx_val],
+                                    hoverinfo='text+x+y'))
+        
+        fig.add_trace(go.Scatter(x=y_true_test,
+                                    y=y_pred_test,
+                                    mode='markers',
+                                    name='Test set',
+                                    marker=dict(color='green'),
+                                    text=[f"Index: {idx}" for idx in idx_test],
+                                    hoverinfo='text+x+y'))
+        
+        fig.add_trace(go.Scatter(x=[min(y_true_train), max(y_true_train)],
+                                y=[min(y_true_train), max(y_true_train)],
+                                mode='lines',
+                                name='Parity Line',
+                                line=dict(color='red', dash='dash')))
+        
+        fig.update_layout(title='Parity Plot',
+                            xaxis_title=f'Real {opt.target_variable_name} {opt.target_variable_units}',
+                            yaxis_title=f'Predicted {opt.target_variable_name} {opt.target_variable_units}',
+                            showlegend=True)
+        
+    
+    
+    if opt.show_all and opt.split_type != 'tvt':
+        st.plotly_chart(fig)
+        st.text("".join(report))
+
+    # Combine embeddings for further use if needed
+    emb_all = pd.concat([emb_train, emb_val, emb_test], axis=0)
+
+    results_all = pd.concat([train_results, val_results, test_results], axis=0)
+
+    if opt.split_type is not 'tvt':
+        results_all['Inner_Fold'] = inner
+        results_all['Outer_Fold'] = outer
+
+    return results_all, report
+
+    # Return the report as a string and the predictions/true values for plotting
+
 
 
 def network_report(log_dir,

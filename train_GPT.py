@@ -79,13 +79,27 @@ def main():
         st.write(df.head())
         smiles_cols = st.multiselect("Select SMILES columns", options=df.columns.tolist())
         st.write(f"Selected SMILES columns: {', '.join(smiles_cols)}" if smiles_cols else "No SMILES columns selected")
+        identifier_col = st.selectbox("Select column with the ID of each molecule", options=df.columns.tolist())
         target_col = st.selectbox("Select target column", options=df.columns.tolist())
-        target_units = st.text_input("Target units", value="kJ/mol")
+        target_name = st.text_input("Target variable name", value=target_col)
+        target_units = st.text_input("Target variable units", value="kJ/mol")
 
         if target_col:
-            st.header(f"Distribution of {target_col}")
+            st.header(f"Distribution of {target_name}")
 
-            bin_size = st.slider("Bin size", min_value=0.1, max_value=10.0, value=0.5)
+            min_val_target = df[target_col].min()
+            max_val_target = df[target_col].max()
+
+            max_num_bins = 20
+            min_num_bins = 5
+
+            dif_max_min = max_val_target - min_val_target
+
+            min_val_hist = dif_max_min / max_num_bins
+            max_val_hist = dif_max_min / min_num_bins
+            mid_val_hist = (max_val_hist + min_val_hist) / 2
+
+            bin_size = st.slider("Bin size", min_value=min_val_hist, max_value=max_val_hist, value=mid_val_hist)
             
             # Create histogram
             fig = ff.create_distplot([df[target_col].dropna()], group_labels=[target_col], bin_size=bin_size)
@@ -93,6 +107,9 @@ def main():
 
     # Apply button
     if csv_file and log_dir and log_name and smiles_cols:
+
+        show_all = st.checkbox("Show all metrics for all training processes", value=True)
+
         if st.button("Apply and Train"):
 
             # Update opt with user inputs
@@ -112,7 +129,13 @@ def main():
             opt.split_method = terms_dict[split_method]
 
             opt.target_variable = target_col
+            opt.target_variable_name = target_name
             opt.target_variable_units = target_units
+            opt.mol_id_col = identifier_col
+
+            opt.show_all = show_all
+
+
 
             if split_type == "Train-Validation-Test Split":
                 opt.val_size = val_set_ratio
