@@ -170,6 +170,13 @@ class BaseOptions:
             default='kJ/mol',
             help='target variable to predict',
             )
+        
+        self.parser.add_argument(
+            '--mol_id_col',
+            type=str,
+            default=None,
+            help='Column containing ID identifier of each entry',
+            )
 
         self.parser.add_argument(
             '--mol_cols',

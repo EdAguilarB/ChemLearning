@@ -6,6 +6,7 @@ import sys
 import os
 import torch
 import time
+import pandas as pd
 from copy import deepcopy
 from call_methods import make_network, create_loaders
 from utils.utils_model import train_network, eval_network, \
@@ -50,6 +51,9 @@ def train_GNNet(opt, file) -> None:
 
     ncv_iterators = create_loaders(data, opt)
 
+    results_all = pd.DataFrame()
+    report_all = []
+
     # Initiate the counter of the total runs
     counter = 0
 
@@ -59,19 +63,25 @@ def train_GNNet(opt, file) -> None:
         # The inner loop is for the inner fold or validation fold
         for inner in range(1, max_inner):
 
+            # Inner fold is incremented by 1 to avoid having same inner and outer fold number for logging purposes
+            real_inner = inner +1 if outer <= inner else inner
+
+            if opt.split_type == 'tvt':
+                st.title(f"Train-Validation-Test Split Training Process")
+
+            elif opt.split_type == 'cv' or opt.split_type == 'ncv':
+                st.title(f"Outer Fold: {outer} | Inner Fold: {real_inner} Training Process")
+
             fig = go.Figure()
             fig.add_trace(go.Scatter(x=[], y=[], mode='lines', name='Train Loss', line=dict(color='blue')))
-            fig.add_trace(go.Scatter(x=[], y=[], mode='lines', name='Validation Loss', line=dict(color='green')))
-            fig.add_trace(go.Scatter(x=[], y=[], mode='lines', name='Test Loss', line=dict(color='red')))
+            fig.add_trace(go.Scatter(x=[], y=[], mode='lines', name='Validation Loss', line=dict(color='orange')))
+            fig.add_trace(go.Scatter(x=[], y=[], mode='lines', name='Test Loss', line=dict(color='green')))
             fig.update_layout(
                 xaxis_title="Epoch",
                 yaxis_title="Loss",
                 title="Learning Curve"
             )
             plot_placeholder = st.empty()
-
-            # Inner fold is incremented by 1 to avoid having same inner and outer fold number for logging purposes
-            real_inner = inner +1 if outer <= inner else inner
 
             # Initiate the early stopping parameters
             val_best_loss = 1000
@@ -149,7 +159,7 @@ def train_GNNet(opt, file) -> None:
                             y=[0, max(*train_list, *val_list, *test_list)],
                             mode='lines',
                             name='Best Validation Loss (Saved Model)',
-                            line=dict(color="orange", width=2, dash="dashdot"),
+                            line=dict(color="red", width=2, dash="dashdot"),
                             hoverinfo='skip'
                         ))
 
@@ -170,41 +180,93 @@ def train_GNNet(opt, file) -> None:
 
             print('---------------------------------')
 
-            report = generate_st_report(opt=opt,
-                                        loaders=(train_loader, val_loader, test_loader),
-                                        model=model,
-                                        model_params=best_model_params,
-                                        )
+            # Create parity plot
+
+
             
-            st.header("Training Report")
-            st.text(report)
-
-            st.download_button(
-                label="Download Report as TXT",
-                data=report,
-                file_name="training_report.txt",
-                mime="text/plain",
-            )
-
-            # Report the model performance
-
-
-            # Reset the variables of the training
+            # Generate the training report
+            result_run, report = generate_st_report(opt = opt, 
+                                            loaders = (train_loader, val_loader, test_loader), 
+                                            model = model, 
+                                            model_params = best_model_params,
+                                            inner=real_inner,
+                                            outer=outer,)
+            
+            results_all = pd.concat([results_all, result_run], axis=0)
+            report_all.extend(report)
+            
             del model, train_loader, val_loader, test_loader, train_list, val_list, test_list, best_model_params, best_epoch
         
         print(f'All runs for outer test fold {outer} completed')
         print('Generating outer report')
 
-        network_outer_report(
-            log_dir=f"{opt.log_dir_results}/{opt.filename[:-4]}/results_GNN/Fold_{outer}_test_set/",
-            outer=outer,
+    results_all = results_all.reset_index(drop=True)
+
+    results_all = results_all.groupby(['index', 'set'], as_index=False).mean()
+    
+    st.title("Final Results")
+    st.write(results_all)
+
+    results_train = results_all.loc[results_all['set'] == 'Training']
+    results_val = results_all.loc[results_all['set'] == 'Validation']
+    results_test = results_all.loc[results_all['set'] == 'Test']
+
+    fig = go.Figure()
+
+
+    fig.add_trace(go.Scatter(x=results_train[f'real_{opt.target_variable_name}'],
+                                 y=results_train[f'predicted_{opt.target_variable_name}'],
+                                 mode='markers',
+                                 name='Training Set',
+                                 marker=dict(color='blue'),
+                                 text=results_all['index'],
+                                 hoverinfo='text'
+                                 ))
+    
+    fig.add_trace(go.Scatter(x=results_val[f'real_{opt.target_variable_name}'],
+                                    y=results_val[f'predicted_{opt.target_variable_name}'],
+                                    mode='markers',
+                                    name='Validation Set',
+                                    marker=dict(color='orange'),
+                                    text=results_all['index'],
+                                    hoverinfo='text'
+                                    ))
+    
+    fig.add_trace(go.Scatter(x=results_test[f'real_{opt.target_variable_name}'],
+                                    y=results_test[f'predicted_{opt.target_variable_name}'],
+                                    mode='markers',
+                                    name='Test Set',
+                                    marker=dict(color='green'),
+                                    text=results_all['index'],
+                                    hoverinfo='text'
+                                    ))
+
+    fig.add_trace(go.Scatter(x=[min(results_train[f'real_{opt.target_variable_name}']), max(results_train[f'real_{opt.target_variable_name}'])],
+                                y=[min(results_train[f'real_{opt.target_variable_name}']), max(results_train[f'real_{opt.target_variable_name}'])],
+                                mode='lines',
+                                name='Parity Line',
+                                line=dict(color='red', dash='dash')))
+    
+    st.plotly_chart(fig, use_container_width=True)
+
+
+
+
+    results_all_csv = results_all.to_csv(index=True)
+
+    st.download_button(
+        label="Download Detailed report",
+        data="".join(report_all),
+        file_name=f"report_all_{opt.experiment_name}.txt",
+        mime="text/csv",
         )
 
-        print('---------------------------------')
-    
-    print('All runs completed')
+        #network_outer_report(
+        #    log_dir=f"{opt.log_dir_results}/{opt.filename[:-4]}/results_GNN/Fold_{outer}_test_set/",
+        #    outer=outer,
+        #)
+
+
     
 
-if __name__ == "__main__":
-    train_network()
 

@@ -24,6 +24,8 @@ class rhcaa_diene(reaction_graph):
 
         self._include_fold = include_fold
 
+        self.mol_identifier_col = opt.mol_id_col
+
         if self._include_fold:
 
             columns = file.columns
@@ -77,6 +79,9 @@ class rhcaa_diene(reaction_graph):
                     edge_index_reaction = torch.cat([edge_index_reaction, edge_index], axis=1)
 
             y = torch.tensor(reaction[self._opt.target_variable]).reshape(1)
+
+            if self.mol_identifier_col is not None:
+                index = reaction[self.mol_identifier_col]
 
 
             if self._include_fold:
