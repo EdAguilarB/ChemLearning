@@ -32,9 +32,6 @@ def train_GNNet(opt, file) -> None:
                            molcols = opt.mol_cols, 
                            root=opt.root,
                            file=file)
-    
-    print(data.num_node_features)
-
 
     if opt.split_type == 'tvt':
         max_outer = 2
@@ -217,13 +214,15 @@ def train_GNNet(opt, file) -> None:
 
     st.write(results_all)
 
-    st.write("CSV file with mean predictions and real values")
+    if opt.split_type != 'tvt':
 
-    results_all = results_all.groupby(['index', 'set'], as_index=False).mean()
+        st.write("CSV file with mean predictions and real values")
 
-    results_all = results_all.drop(columns=['Inner_Fold', 'Outer_Fold'])
+        results_all = results_all.groupby(['index', 'set'], as_index=False).mean()
+
+        results_all = results_all.drop(columns=['Inner_Fold', 'Outer_Fold'])
     
-    st.write(results_all)
+        st.write(results_all)
 
     results_train = results_all.loc[results_all['set'] == 'Training']
     results_val = results_all.loc[results_all['set'] == 'Validation']

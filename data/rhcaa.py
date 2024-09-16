@@ -51,13 +51,18 @@ class rhcaa_diene(reaction_graph):
 
             node_feats_reaction = None
             all_smiles = []
+            mol_name = []
+            total_nodes = 0
+            
+            mols = sorted(self.mol_cols, key = str.lower)
 
-            for reactant in self.mol_cols:  
+            for reactant in mols:  
 
                 #create a molecule object from the smiles string
-                std_smiles = standardize_smiles(reaction[reactant])
+                std_smiles = Chem.MolToSmiles(Chem.MolFromSmiles(reaction[reactant]), canonical=True)
 
                 all_smiles.append(std_smiles)
+                mol_name.append(reactant)
 
                 mol = Chem.MolFromSmiles(std_smiles)
 
@@ -89,7 +94,7 @@ class rhcaa_diene(reaction_graph):
                     else:
                         if global_feat in self._opt.ohe_graph_feat:
                             uni_vals = self.data[global_feat].unique()
-                            global_features += self._one_h_e('qWeRtYuIoP', uni_vals)
+                            global_features += self._one_h_e('qWeRtYuIoP', uni_vals, 'qWeRtYuIoP')
                         else:
                             global_features += [0]
 
@@ -105,15 +110,16 @@ class rhcaa_diene(reaction_graph):
 
                 else:
                     node_feats_reaction = torch.cat([node_feats_reaction, node_feats], axis=0)
-                    edge_attr_reaction = torch.cat([edge_attr_reaction, edge_attr], axis=0)
-                    edge_index += max(edge_index_reaction[0]) + 1
+                    edge_index += total_nodes
                     edge_index_reaction = torch.cat([edge_index_reaction, edge_index], axis=1)
+                    edge_attr_reaction = torch.cat([edge_attr_reaction, edge_attr], axis=0)
+
+                total_nodes += node_feats.shape[0]
 
             y = torch.tensor(reaction[self._opt.target_variable]).reshape(1)
 
             if self.mol_identifier_col is not None:
                 idx = reaction[self.mol_identifier_col]
-
 
             if self._include_fold:
                 fold = reaction['fold']
@@ -125,6 +131,7 @@ class rhcaa_diene(reaction_graph):
                         edge_attr=edge_attr_reaction, 
                         y=y,
                         smiles = all_smiles,
+                        mol_names = mol_name,
                         idx = idx,
                         fold = fold
                         ) 
