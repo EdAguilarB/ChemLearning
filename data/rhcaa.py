@@ -41,6 +41,7 @@ class rhcaa_diene(reaction_graph):
     def process(self):
 
         self.data = pd.read_csv(self.raw_paths[0]).reset_index()
+        #self.data = self.data.reset_index()
 
         st.text('Generating Graph Representation of the Molecules...')
 
@@ -50,7 +51,6 @@ class rhcaa_diene(reaction_graph):
 
             node_feats_reaction = None
             all_smiles = []
-            temp = reaction['temp']/100
 
             for reactant in self.mol_cols:  
 
@@ -63,7 +63,38 @@ class rhcaa_diene(reaction_graph):
 
                 mol = Chem.rdmolops.AddHs(mol)
 
-                node_feats = self._get_node_feats(mol, reaction['Confg'], reactant, temp)
+                #initialize the graph level features
+                global_features = []
+
+                # checks the global features that the user wants to include
+                for global_feat in self._opt.graph_features.keys():
+
+
+                    # checks if the molecule has the global feature
+                    if reactant in self._opt.graph_features[global_feat]:
+
+                        # checks if the global feature has to be one hot encoded
+                        if global_feat in self._opt.ohe_graph_feat:
+                            #get the unique values of the global feature
+                            uni_vals = self.data[global_feat].unique()
+                            global_features += self._one_h_e(reaction[global_feat], uni_vals)
+                
+                        else:
+
+                            global_features += [reaction[global_feat]]
+
+                            #self.
+                    
+                    # condition where the molecule does not have the global feature but it is necessary to add the '0'
+                    else:
+                        if global_feat in self._opt.ohe_graph_feat:
+                            uni_vals = self.data[global_feat].unique()
+                            global_features += self._one_h_e('qWeRtYuIoP', uni_vals)
+                        else:
+                            global_features += [0]
+
+
+                node_feats = self._get_node_feats(mol, global_features)
 
                 edge_attr, edge_index = self._get_edge_features(mol)
 
@@ -81,7 +112,7 @@ class rhcaa_diene(reaction_graph):
             y = torch.tensor(reaction[self._opt.target_variable]).reshape(1)
 
             if self.mol_identifier_col is not None:
-                index = reaction[self.mol_identifier_col]
+                idx = reaction[self.mol_identifier_col]
 
 
             if self._include_fold:
@@ -94,7 +125,7 @@ class rhcaa_diene(reaction_graph):
                         edge_attr=edge_attr_reaction, 
                         y=y,
                         smiles = all_smiles,
-                        idx = index,
+                        idx = idx,
                         fold = fold
                         ) 
             
@@ -106,8 +137,8 @@ class rhcaa_diene(reaction_graph):
 
         st.success("Graphs generated succesfully!")
     
-
-    def _get_node_feats(self, mol, mol_confg, reactant, temperature):
+    
+    def _get_node_feats(self, mol, graph_feat):
 
         all_node_feats = []
         CIPtuples = dict(Chem.FindMolChiralCenters(mol, includeUnassigned=False))
@@ -126,13 +157,9 @@ class rhcaa_diene(reaction_graph):
             node_feats += [atom.IsInRing()]
             # Feature 6: Chirality
             node_feats += self._one_h_e(self._get_atom_chirality(CIPtuples, atom.GetIdx()), ['R', 'S'], 'No_Stereo_Center')
-            #feature 7: ligand configuration
-            if reactant == 'Ligand':
-                node_feats += self._one_h_e(mol_confg, [2, 1], 0)
-            else:
-                node_feats += [0,0]
-            # feature 8: reaction temperature
-            node_feats += [temperature]
+
+            # Graph level features
+            node_feats += graph_feat
 
             # Append node features to matrix
             all_node_feats.append(node_feats)

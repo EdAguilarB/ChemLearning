@@ -11,6 +11,12 @@ import plotly.figure_factory as ff
 from options.base_options import BaseOptions
 from scripts_experiments.train_GNN import train_GNNet
 
+from data.predict_unseen import predict_insilico
+
+from torch_geometric.loader import DataLoader
+
+from utils.utils_model import predict_network
+
 
 terms_dict = {
     "Train-Validation-Test Split": "tvt",
@@ -56,21 +62,38 @@ def main():
 
         split_method = st.selectbox("Select Split Method", ["Stratified Split", "Random Split"])
 
+        if split_method == "Stratified Split":
+            # hacer lo de numero de tractos en que dividir la variable continua par el stratified
+            pass
+
 
     # Step 2: Enter Directory Path Manually
-    with st.sidebar.expander("Step 2: Enter the log directory path"):
+    with st.sidebar.expander("Step 3: Enter the log directory path"):
         st.text("Please enter the full path to the directory where you want to save the log files.")
         log_dir = st.text_input("Log Directory Path", value=os.getcwd())
         st.text("Please enter the name of the directory where you want to save the log files.")
         log_name = st.text_input("Log directory name", value="my_experiment")
 
     # Step 5: Training Options
-    with st.sidebar.expander("Step 5: Set Training Options", expanded=False):
+    with st.sidebar.expander("Step 4: Set Training Options", expanded=False):
         embedding_dim = st.number_input("Embedding size", min_value=1, max_value=1024, value=opt.embedding_dim)
         n_convolutions = st.number_input("Number of convolutions", min_value=1, max_value=10, value=opt.n_convolutions)
         readout_layers = st.number_input("Number of readout layers", min_value=1, max_value=10, value=opt.readout_layers)
         epochs = st.number_input("Number of epochs", min_value=1, max_value=1000, value=opt.epochs)
         batch_size = st.number_input("Training batch size", min_value=1, max_value=512, value=opt.batch_size)
+
+    # Step 5: Training Options
+    with st.sidebar.expander("Step 5: Predict Property of in silico library", expanded=False):
+
+        in_silico_mols = st.file_uploader("Choose a CSV file", type="csv", key="in_silico_mols")
+        if in_silico_mols:
+            df_insilico = pd.read_csv(in_silico_mols)
+
+        st.write(in_silico_mols.name if in_silico_mols else "No file selected")
+
+        model_arch = st.file_uploader("Upload a model architecture file")
+        model_pars = st.file_uploader("Upload the model best parameters")
+
 
     smiles_cols = []
     if csv_file:
@@ -79,6 +102,18 @@ def main():
         st.write(df.head())
         smiles_cols = st.multiselect("Select SMILES columns", options=df.columns.tolist())
         st.write(f"Selected SMILES columns: {', '.join(smiles_cols)}" if smiles_cols else "No SMILES columns selected")
+
+        graph_level_features = st.multiselect("Select graph-level features", options=df.columns.tolist())
+
+        st.write("Select the molecules which have the following features:")
+
+        graph_feats = {}
+
+        for feature in graph_level_features:
+            graph_feats[feature] = st.multiselect(feature, options=smiles_cols)
+
+        one_hot_encode_feats = st.multiselect("Select features to one-hot encode", options=graph_level_features)
+
         identifier_col = st.selectbox("Select column with the ID of each molecule", options=df.columns.tolist())
         target_col = st.selectbox("Select target column", options=df.columns.tolist())
         target_name = st.text_input("Target variable name", value=target_col)
@@ -90,7 +125,7 @@ def main():
             min_val_target = df[target_col].min()
             max_val_target = df[target_col].max()
 
-            max_num_bins = 20
+            max_num_bins = 30
             min_num_bins = 5
 
             dif_max_min = max_val_target - min_val_target
@@ -104,15 +139,6 @@ def main():
             # Create histogram
             fig = ff.create_distplot([df[target_col].dropna()], group_labels=[target_col], bin_size=bin_size)
             st.plotly_chart(fig)
-
-    # Apply button
-    if csv_file and log_dir and log_name and smiles_cols:
-
-        show_all = st.checkbox("Show all metrics for all training processes", value=True)
-
-        if st.button("Apply and Train"):
-
-            # Update opt with user inputs
 
             opt.root = log_dir
             opt.filename = os.path.basename(csv_file.name)
@@ -133,9 +159,28 @@ def main():
             opt.target_variable_units = target_units
             opt.mol_id_col = identifier_col
 
+            opt.ohe_graph_feat = one_hot_encode_feats
+            opt.graph_features = graph_feats
+
+
+    if in_silico_mols:
+
+        st.write(df_insilico)
+
+        identifier_col = st.selectbox("Select column with the ID of each molecule for in silico library", options=df_insilico.columns.tolist())
+
+        opt.mol_id_col_insilico = identifier_col
+
+
+    # Apply button
+    if csv_file and log_dir and log_name and smiles_cols:
+
+        show_all = st.checkbox("Show all metrics for all training processes", value=True)
+
+        if st.button("Apply and Train"):
+
+            # Update opt with user inputs
             opt.show_all = show_all
-
-
 
             if split_type == "Train-Validation-Test Split":
                 opt.val_size = val_set_ratio
@@ -145,7 +190,8 @@ def main():
                 opt.folds = folds
 
             # Train the GNN model
-            train_GNNet(opt, df)
+            model_params, model = train_GNNet(opt, df)
+
 
             st.success(f"Training started successfully with the following configuration:\n\n"
                         f"Data File: {csv_file.name}\n"
@@ -157,10 +203,152 @@ def main():
                         f"Number of Epochs: {epochs}\n"
                         f"Batch Size: {batch_size}\n"
                         f"Selected SMILES Columns: {', '.join(smiles_cols)}")
+            
+
+            if in_silico_mols:
+
+                st.title("In-Silico Library Predictions")
+
+                graphs_insilico = predict_insilico(df_insilico).process(opt)
+                loader = DataLoader(graphs_insilico)
+
+                results_insilico = pd.DataFrame(columns=[f'predictions_{opt.target_variable_name}', f'real_values_{opt.target_variable_name}', 'ID', 'model'])
+
+                for i in range(len(model)):
+                    model[i].load_state_dict(model_params[i])
+                    y_pred, y_true, idx, embs = predict_network(model[i], loader, True)
+                    results_model = pd.DataFrame({f'predictions_{opt.target_variable_name}': y_pred, f'real_values_{opt.target_variable_name}': y_true, 'ID': idx, 'model': i})
+                    results_insilico = pd.concat([results_insilico, results_model], axis=0)
+
+                st.write('Results in-Silico library')
+
+                if None not in y_true:
+
+                    st.write(results_insilico)
+
+                    ins = go.Figure()
+
+                    ins.add_trace(go.Scatter(x=y_true,
+                                            y=y_pred,
+                                            mode = 'markers',
+                                            name = 'In-Silico library estrictos',
+                                            marker=dict(color='blue'),
+                                            text=idx,
+                                            hoverinfo='text'))
+                    
+                    st.plotly_chart(ins, use_container_width=True)
+                
+                else:
+                    results_insilico = results_insilico.dropna(axis = 1)
+
+                    if results_insilico['model'].nunique() == 1:
+                        results_insilico = results_insilico.drop(columns=['model'])
+
+                        st.write(results_insilico)
+
+                    
+                        vio = px.violin(y=y_pred, box=True, 
+                                        points="all", 
+                                        title='In-Silico library property predictions')
+                        
+                        st.plotly_chart(vio, use_container_width=True)
+
+                    elif opt.split_type == 'cv' and opt.folds <= 5:
+
+
+                        results_insilico['model'] += 2
+
+                        mean_preds = results_insilico.groupby(['ID'], as_index=False).mean()[[f'predictions_{opt.target_variable_name}', 'ID']]
+                        mean_preds['model'] = 'Mean'
+
+                        meadian_preds = results_insilico.groupby(['ID'], as_index=False).median()[[f'predictions_{opt.target_variable_name}', 'ID']]
+                        meadian_preds['model'] = 'Median'
+
+                        results_insilico = pd.concat([results_insilico, mean_preds, meadian_preds], axis=0)
+
+                        st.write(results_insilico)
+
+                        results_insilico = results_insilico.rename(columns={'model': 'Inner Fold'})   
+
+                        vio = px.strip(results_insilico, 
+                                        y=f'predictions_{opt.target_variable_name}', 
+                                        color='Inner Fold', 
+                                        custom_data=['ID'],
+                                        title='In-Silico library property predictions', 
+                                        )  
+                        
+                        vio.update_traces(hovertemplate='<br>ID: %{customdata[0]}<br>' + opt.target_variable_name +  ' Value: %{y}<extra></extra>',)
+
+                        vio.update_layout(yaxis_title=f'Predicted {opt.target_variable_name} / {opt.target_variable_units}',
+                                          width=800,)
+                        
+                        st.plotly_chart(vio, use_container_width=True)
+
+                    else:
+
+                        if opt.split_type == 'cv':  
+                            results_insilico['model'] += 2
+
+                        elif opt.split_type == 'ncv':
+                            counter = 0
+
+                            for o in range (1, opt.folds+1):
+                                for i in range(1, opt.folds):
+
+                                    i += 1 if o <= i else i
+
+                                    results_insilico.loc[results_insilico['model'] == counter, 'model'] = f'Outer Fold {o} - Inner Fold {i}'
+
+                                    counter += 1
+
+                        
+                        mean_preds = results_insilico.groupby(['ID'], as_index=False).mean()[[f'predictions_{opt.target_variable_name}', 'ID']]
+                        mean_preds['model'] = 'Mean'
+
+                        meadian_preds = results_insilico.groupby(['ID'], as_index=False).median()[[f'predictions_{opt.target_variable_name}', 'ID']]
+                        meadian_preds['model'] = 'Median'
+
+                        results_insilico = pd.concat([results_insilico, mean_preds, meadian_preds], axis=0)
+                        
+                        st.write(results_insilico)
+
+                        results_insilico = results_insilico.loc[results_insilico['model'].isin(['Mean', 'Median'])]
+
+                        vio = px.strip(results_insilico, 
+                                        y=f'predictions_{opt.target_variable_name}', 
+                                        color='model', 
+                                        custom_data=['ID'],
+                                        title='In-Silico library property predictions', 
+                                        )  
+                        
+                        vio.update_traces(hovertemplate='<br>ID: %{customdata[0]}<br>' + opt.target_variable_name +  ' Value: %{y}<extra></extra>',)
+
+                        vio.update_layout(yaxis_title=f'Predicted {opt.target_variable_name} / {opt.target_variable_units}',
+                                          width=800,
+                                          xaxis_title='')
+                        
+                        st.plotly_chart(vio, use_container_width=True)
+
+
+
+
+
         #else:
         #    st.error("Please ensure all fields are filled and SMILES columns are selected!")
     else:
         st.write("Please select all the training options to start the training.")
+
+
+
+
+
+
+
+
+
+
+
+
 
 if __name__ == "__main__":
     main()

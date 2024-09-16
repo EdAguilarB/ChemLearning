@@ -185,6 +185,20 @@ class BaseOptions:
             help='column names of the reactant and product smiles',
             )
         
+        self.parser.add_argument(
+            '--graph_features',
+            type=dict,
+            default=None,
+            help='Name of features to be used as graph level features',
+            )
+        
+        self.parser.add_argument(
+            '--ohe_graph_feat',
+            type=list,
+            default=None,
+            help='Dictionary containing the features to be one hot encoded',
+            )
+        
 
         ###########################################
         ############Training Options GNN###########

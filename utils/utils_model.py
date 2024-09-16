@@ -95,12 +95,18 @@ def predict_network(model, loader, return_emb = False):
                          return_graph_embedding = True)
 
         y_pred.append(out.cpu().detach().numpy())
-        y_true.append(batch.y.cpu().detach().numpy())
+        try:
+            y_true.append(batch.y.cpu().detach().numpy())
+        except:
+            y_true.append(batch.y)
         idx.append(batch.idx.cpu().detach().numpy())
         embeddings.append(emb.detach().numpy())
 
     y_pred = np.concatenate(y_pred, axis=0).ravel()
-    y_true = np.concatenate(y_true, axis=0).ravel()
+    try:
+        y_true = np.concatenate(y_true, axis=0).ravel()
+    except:
+        pass
     idx = np.concatenate(idx, axis=0).ravel()
     embeddings = np.concatenate(embeddings, axis=0)
 
@@ -220,12 +226,13 @@ def generate_st_report(opt,
         fig.update_layout(title='Parity Plot',
                             xaxis_title=f'Real {opt.target_variable_name} {opt.target_variable_units}',
                             yaxis_title=f'Predicted {opt.target_variable_name} {opt.target_variable_units}',
-                            showlegend=True)
+                            showlegend=True,
+                            )
         
     
     
     if opt.show_all and opt.split_type != 'tvt':
-        st.plotly_chart(fig)
+        st.plotly_chart(fig, use_container_width=True)
         st.text("".join(report))
 
     # Combine embeddings for further use if needed

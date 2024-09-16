@@ -1,4 +1,4 @@
-from data.chem_graph import molecular_graph
+
 from data.rhcaa import rhcaa_diene
 import streamlit as st
 import plotly.graph_objects as go
@@ -32,6 +32,8 @@ def train_GNNet(opt, file) -> None:
                            molcols = opt.mol_cols, 
                            root=opt.root,
                            file=file)
+    
+    print(data.num_node_features)
 
 
     if opt.split_type == 'tvt':
@@ -53,6 +55,9 @@ def train_GNNet(opt, file) -> None:
 
     results_all = pd.DataFrame()
     report_all = []
+
+    model_params = []
+    models = []
 
     # Initiate the counter of the total runs
     counter = 0
@@ -194,17 +199,30 @@ def train_GNNet(opt, file) -> None:
             
             results_all = pd.concat([results_all, result_run], axis=0)
             report_all.extend(report)
+
+            model_params.append(best_model_params)
+            models.append(model)
             
-            del model, train_loader, val_loader, test_loader, train_list, val_list, test_list, best_model_params, best_epoch
+            del model, train_loader, val_loader, test_loader, train_list, val_list, test_list, best_model_params, best_epoch, fig
         
         print(f'All runs for outer test fold {outer} completed')
         print('Generating outer report')
 
+
+    st.title("Final Results")
+
     results_all = results_all.reset_index(drop=True)
 
+    st.write("CSV file with all predictions and real values")
+
+    st.write(results_all)
+
+    st.write("CSV file with mean predictions and real values")
+
     results_all = results_all.groupby(['index', 'set'], as_index=False).mean()
+
+    results_all = results_all.drop(columns=['Inner_Fold', 'Outer_Fold'])
     
-    st.title("Final Results")
     st.write(results_all)
 
     results_train = results_all.loc[results_all['set'] == 'Training']
@@ -219,7 +237,7 @@ def train_GNNet(opt, file) -> None:
                                  mode='markers',
                                  name='Training Set',
                                  marker=dict(color='blue'),
-                                 text=results_all['index'],
+                                 text=results_train['index'],
                                  hoverinfo='text'
                                  ))
     
@@ -228,7 +246,7 @@ def train_GNNet(opt, file) -> None:
                                     mode='markers',
                                     name='Validation Set',
                                     marker=dict(color='orange'),
-                                    text=results_all['index'],
+                                    text=results_val['index'],
                                     hoverinfo='text'
                                     ))
     
@@ -237,7 +255,7 @@ def train_GNNet(opt, file) -> None:
                                     mode='markers',
                                     name='Test Set',
                                     marker=dict(color='green'),
-                                    text=results_all['index'],
+                                    text=results_test['index'],
                                     hoverinfo='text'
                                     ))
 
@@ -246,6 +264,12 @@ def train_GNNet(opt, file) -> None:
                                 mode='lines',
                                 name='Parity Line',
                                 line=dict(color='red', dash='dash')))
+    
+    fig.update_layout(title='Parity Plot Mean Predictions',
+                    xaxis_title=f'Real {opt.target_variable_name} {opt.target_variable_units}',
+                    yaxis_title=f'Predicted {opt.target_variable_name} {opt.target_variable_units}',
+                    showlegend=True,
+                    )
     
     st.plotly_chart(fig, use_container_width=True)
 
@@ -260,6 +284,8 @@ def train_GNNet(opt, file) -> None:
         file_name=f"report_all_{opt.experiment_name}.txt",
         mime="text/csv",
         )
+    
+    return model_params, models
 
         #network_outer_report(
         #    log_dir=f"{opt.log_dir_results}/{opt.filename[:-4]}/results_GNN/Fold_{outer}_test_set/",
