@@ -11,7 +11,7 @@ sys.path.append(os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
 
 def predict_mols(opt, df:pd.DataFrame, model, model_params):
 
-    graphs_insilico = predict_insilico(df).process()
+    graphs_insilico = predict_insilico(df).process(opt)
     loader = DataLoader(graphs_insilico)
 
     results_insilico = pd.DataFrame(columns=[f'predictions_{opt.target_variable_name}', f'real_values_{opt.target_variable_name}', 'ID', 'model'])
