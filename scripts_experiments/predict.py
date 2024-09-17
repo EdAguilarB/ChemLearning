@@ -5,6 +5,9 @@ from utils.utils_model import predict_network
 from torch_geometric.loader import DataLoader
 import plotly.graph_objects as go
 import plotly.express as px
+import os, sys
+
+sys.path.append(os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
 
 def predict_mols(opt, df:pd.DataFrame, model, model_params):
 
