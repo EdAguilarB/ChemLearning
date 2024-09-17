@@ -222,16 +222,16 @@ def main():
                 json_str = json.dumps(json_data, indent=4)
                 zip_file.writestr(f"hyperparameters_{opt.experiment_name}.json", json_str)
 
-                for model_idx, model in enumerate(model_params):
-                    model_buffer = io.BytesIO()
-                    torch.save(model, model_buffer)
-                    model_buffer.seek(0)
-                    zip_file.writestr(f"model_params_{model_idx}.pt", model_buffer.read())
+                #for model_idx, model in enumerate(model_params):
+                #    model_buffer = io.BytesIO()
+                #    torch.save(model, model_buffer)
+                #    model_buffer.seek(0)
+                #    zip_file.writestr(f"model_params_{model_idx}.pt", model_buffer.read())
 
-                model_buffer = io.BytesIO()
-                torch.save(model, model_buffer)
-                model_buffer.seek(0)
-                zip_file.writestr(f"model_architecture.pt", model_buffer.read())
+                #model_buffer = io.BytesIO()
+                #torch.save(model, model_buffer)
+                #model_buffer.seek(0)
+                #zip_file.writestr(f"model_architecture.pt", model_buffer.read())
             
             zip_buffer.seek(0)
 
