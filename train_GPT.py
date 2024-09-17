@@ -207,10 +207,7 @@ def main():
                         f"Batch Size: {batch_size}\n"
                         f"Selected SMILES Columns: {', '.join(smiles_cols)}")
             
-            args = vars(opt)
-
-            with open(f'{opt.experiment_name}.json', 'w') as json_file:
-                json.dump(args, json_file, indent=4)          
+            json_data = vars(opt)        
 
             zip_buffer = io.BytesIO()
 
@@ -220,7 +217,7 @@ def main():
                 zip_file.writestr(f"report_all_{opt.experiment_name}.txt", report_txt)
                 
                 # Write the JSON file
-                json_str = json.dumps(json_file, indent=4)
+                json_str = json.dumps(json_data, indent=4)
                 zip_file.writestr(f"data_{opt.experiment_name}.json", json_str)
             
             zip_buffer.seek(0)
