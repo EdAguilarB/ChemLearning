@@ -10,7 +10,7 @@ from utils.plot_utils import  plot_importances
 from model.gcn import GCN
 from utils.other_utils import explain_dataset, visualize_score_features, \
     plot_molecule_importance, get_graph_by_idx, plot_denoised_mols
-from icecream import ic
+
 
 
 sys.path.append(os.path.dirname(os.path.abspath(__file__)))

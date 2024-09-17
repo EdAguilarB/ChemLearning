@@ -8,8 +8,6 @@ from utils.utils_model import tml_report, network_outer_report, network_report
 from data.rhcaa import rhcaa_diene
 
 
-from icecream import ic
-
 def predict_final_test() -> None:
 
     opt = BaseOptions().parse()

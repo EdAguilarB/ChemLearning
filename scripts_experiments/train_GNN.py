@@ -11,7 +11,7 @@ from copy import deepcopy
 from call_methods import make_network, create_loaders
 from utils.utils_model import train_network, eval_network, \
     network_report, network_outer_report, generate_st_report
-from icecream import ic
+
 
 sys.path.append(os.path.dirname(os.path.abspath(__file__)))
 
