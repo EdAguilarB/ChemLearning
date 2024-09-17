@@ -9,7 +9,7 @@ import os
 from tqdm import tqdm
 from molvs import standardize_smiles
 import sys
-from sklearn.model_selection import StratifiedKFold, KFold, train_test_split
+
 
 
 from icecream import ic

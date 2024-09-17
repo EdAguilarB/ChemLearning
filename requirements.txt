@@ -18,7 +18,7 @@ PyQt5-Qt5==5.15.14
 PyQt5_sip==12.15.0
 PyYAML
 rdkit>=2023.0.0
-sklearn
+scikit-learn
 streamlit==1.37.1
 toml==0.10.2
 torch>=2.0.1
