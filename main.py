@@ -12,7 +12,7 @@ from scripts_experiments.predict_test import predict_final_test
 from scripts_experiments.compare_gnn_tml import plot_results
 from scripts_experiments.explain_gnn import denoise_graphs, GNNExplainer_node_feats, shapley_analysis
 
-from icecream import ic
+
 
 
 

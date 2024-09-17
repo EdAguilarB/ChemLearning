@@ -14,7 +14,6 @@ from sklearn.metrics import r2_score, mean_absolute_error, mean_squared_error, \
     accuracy_score, precision_score, recall_score, f1_score
 from math import sqrt
 from utils.plot_utils import *
-from icecream import ic
 from sklearn.preprocessing import RobustScaler
 
 

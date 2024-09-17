@@ -9,7 +9,7 @@ import pandas as pd
 import os
 from seaborn import violinplot, stripplot, jointplot, barplot
 from math import sqrt
-from icecream import ic
+
 
 def create_st_parity_plot(real, predicted, figure_name, save_path=None):
     """

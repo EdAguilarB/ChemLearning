@@ -12,7 +12,7 @@ from data.datasets import reaction_graph
 from sklearn.model_selection import StratifiedKFold, KFold, train_test_split
 
 
-from icecream import ic
+
 
 sys.path.append(os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
 

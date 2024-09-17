@@ -12,7 +12,7 @@ import plotly.graph_objects as go
 import plotly.express as px
 
 
-from icecream import ic
+
 
 ######################################
 ######################################
@@ -183,16 +183,13 @@ def plot_weighted_mol(mask,
     coords_edges = [(np.concatenate([np.expand_dims(edge_coords[u], axis=1), np.expand_dims(edge_coords[v], axis =1)], 
                                 axis = 1)) for u, v in zip(edge_idx[0], edge_idx[1])]
     
-    ic(mask)
 
     if norm==True:
         mask = mask/np.max(mask)
 
-    ic(mask)
 
     mask = np.where(mask < 0.6, np.power(mask, 2), np.sqrt(mask))
 
-    ic(mask)
 
 
     atoms_trace = trace_atoms(atom_symbol = atom_symbol,
