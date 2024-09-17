@@ -247,7 +247,7 @@ def main():
 
                 st.title("In-Silico Library Predictions")
 
-                predict_mols(df_insilico)
+                #predict_mols(df_insilico)
 
                 graphs_insilico = predict_insilico(df_insilico).process(opt)
                 loader = DataLoader(graphs_insilico)
