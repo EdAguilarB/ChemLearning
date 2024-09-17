@@ -3,6 +3,7 @@ distlib==0.3.7
 wheel
 numpy
 matplotlib
+seaborn
 joblib==1.3.1
 pandas
 plotly
