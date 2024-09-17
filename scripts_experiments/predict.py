@@ -4,6 +4,7 @@ from data.predict_unseen import predict_insilico
 from utils.utils_model import predict_network
 from torch_geometric.loader import DataLoader
 import plotly.graph_objects as go
+import plotly.express as px
 
 def predict_mols(opt, df:pd.DataFrame, model, model_params):
 
@@ -31,11 +32,87 @@ def predict_mols(opt, df:pd.DataFrame, model, model_params):
                                  mode='markers',
                                  marker=dict(color='blue'),
                                  text=idx,
-                                 hoverinfo='text',
-                                 marginal_x='violin',
-                                 marginal_y='violin',))
+                                 hoverinfo='text',))
         
         st.plotly_chart(par, use_container_width=True)
-        pass
+    
+    else:
+        results_insilico = results_insilico.dropna(axis=1)
 
-    pass
+        if results_insilico.nunique() == 1:
+            results_insilico = results_insilico.drop(columns=['model'])
+
+            st.write(results_insilico)
+
+            vio = px.violin(y=y_pred,
+                            box = True,
+                            points='all', 
+                            title='In-Silico library property predictions')
+            
+            st.plotly_chart(vio, use_container_width=True)
+
+        elif opt.split_type == 'cv' and opt.folds <= 5:
+
+            results_insilico['model'] += 2
+
+            mean_preds = results_insilico.groupby(['ID'], as_index=False).mean()[[f'predictions_{opt.target_variable_name}', 'ID']]
+            mean_preds['model'] = 'Mean'
+
+            meadian_preds = results_insilico.groupby(['ID'], as_index=False).median()[[f'predictions_{opt.target_variable_name}', 'ID']]
+            meadian_preds['model'] = 'Median'
+
+            results_insilico = pd.concat([results_insilico, mean_preds, meadian_preds], axis=0)
+
+            st.write(results_insilico)
+
+            vio = px.strip(results_insilico,
+                           y=f'predictions_{opt.target_variable_name} / {opt.target_variable_units}',
+                           color='model',
+                           custom_data=['ID'],
+                           title='In-Silico library property predictions',
+                           )
+            
+            vio.update_traces(hovertemplate='<br>ID: %{customdata[0]}<br>' + opt.target_variable_name +  ' Value: %{y}<extra></extra>',)
+
+            vio.update_layout(yaxis_title=f'Predicted {opt.target_variable_name} / {opt.target_variable_units}',
+                                          width=800,)
+            
+            st.plotly_chart(vio, use_container_width=True)
+
+        else:
+
+            if opt.split_type == 'cv':
+                results_insilico['model'] += 2
+
+            elif opt.split_type == 'ncv':
+                counter = 0
+
+                for o in range(1, opt.outer_folds+1):
+                    for i in range(1, opt.inner_folds):
+                        i += 1 if o <= i else i
+                        results_insilico.loc[results_insilico['model'] == counter, 'model'] = f'Outer Fold {o} - Inner Fold {i}'
+                        counter += 1
+
+            mean_preds = results_insilico.groupby(['ID'], as_index=False).mean()[[f'predictions_{opt.target_variable_name}', 'ID']]
+            mean_preds['model'] = 'Mean'
+
+            meadian_preds = results_insilico.groupby(['ID'], as_index=False).median()[[f'predictions_{opt.target_variable_name}', 'ID']]
+            meadian_preds['model'] = 'Median'
+
+            results_insilico = pd.concat([results_insilico, mean_preds, meadian_preds], axis=0)
+
+            st.write(results_insilico)
+
+            vio = px.strip(results_insilico,
+                           y=f'predictions_{opt.target_variable_name} / {opt.target_variable_units}',
+                           color='model',
+                           custom_data=['ID'],
+                           title='In-Silico library property predictions',
+                           )
+            
+            vio.update_traces(hovertemplate='<br>ID: %{customdata[0]}<br>' + opt.target_variable_name +  ' Value: %{y}<extra></extra>',)
+
+            vio.update_layout(yaxis_title=f'Predicted {opt.target_variable_name} / {opt.target_variable_units}',
+                                          width=800,)
+            
+            st.plotly_chart(vio, use_container_width=True)

@@ -209,6 +209,16 @@ def main():
                         f"Batch Size: {batch_size}\n"
                         f"Selected SMILES Columns: {', '.join(smiles_cols)}")
             
+
+
+
+            if in_silico_mols:
+
+                st.title("In-Silico Library Predictions")
+
+                predict_mols(opt, df_insilico, model, model_params)
+
+
             json_data = vars(opt)        
 
             zip_buffer = io.BytesIO()
@@ -222,16 +232,16 @@ def main():
                 json_str = json.dumps(json_data, indent=4)
                 zip_file.writestr(f"hyperparameters_{opt.experiment_name}.json", json_str)
 
-                #for model_idx, model in enumerate(model_params):
-                #    model_buffer = io.BytesIO()
-                #    torch.save(model, model_buffer)
-                #    model_buffer.seek(0)
-                #    zip_file.writestr(f"model_params_{model_idx}.pt", model_buffer.read())
+                for model_idx, model in enumerate(model_params):
+                    model_buffer = io.BytesIO()
+                    torch.save(model, model_buffer)
+                    model_buffer.seek(0)
+                    zip_file.writestr(f"model_params_{model_idx}.pt", model_buffer.read())
 
-                #model_buffer = io.BytesIO()
-                #torch.save(model, model_buffer)
-                #model_buffer.seek(0)
-                #zip_file.writestr(f"model_architecture.pt", model_buffer.read())
+                model_buffer = io.BytesIO()
+                torch.save(model, model_buffer)
+                model_buffer.seek(0)
+                zip_file.writestr(f"model_architecture.pt", model_buffer.read())
             
             zip_buffer.seek(0)
 
@@ -243,132 +253,6 @@ def main():
                                 )
 
 
-            if in_silico_mols:
-
-                st.title("In-Silico Library Predictions")
-
-                #predict_mols(df_insilico)
-
-                graphs_insilico = predict_insilico(df_insilico).process(opt)
-                loader = DataLoader(graphs_insilico)
-
-                results_insilico = pd.DataFrame(columns=[f'predictions_{opt.target_variable_name}', f'real_values_{opt.target_variable_name}', 'ID', 'model'])
-
-                for i in range(len(model)):
-                    model[i].load_state_dict(model_params[i])
-                    y_pred, y_true, idx, embs = predict_network(model[i], loader, True)
-                    results_model = pd.DataFrame({f'predictions_{opt.target_variable_name}': y_pred, f'real_values_{opt.target_variable_name}': y_true, 'ID': idx, 'model': i})
-                    results_insilico = pd.concat([results_insilico, results_model], axis=0)
-
-                st.write('Results in-Silico library')
-
-                if None not in y_true:
-
-                    st.write(results_insilico)
-
-                    ins = go.Figure()
-
-                    ins.add_trace(go.Scatter(x=y_true,
-                                            y=y_pred,
-                                            mode = 'markers',
-                                            name = 'In-Silico library',
-                                            marker=dict(color='blue'),
-                                            text=idx,
-                                            hoverinfo='text',
-                                            marginal_x='violin',))
-                    
-                    st.plotly_chart(ins, use_container_width=True)
-                
-                else:
-                    results_insilico = results_insilico.dropna(axis = 1)
-
-                    if results_insilico['model'].nunique() == 1:
-                        results_insilico = results_insilico.drop(columns=['model'])
-
-                        st.write(results_insilico)
-
-                    
-                        vio = px.violin(y=y_pred, box=True, 
-                                        points="all", 
-                                        title='In-Silico library property predictions')
-                        
-                        st.plotly_chart(vio, use_container_width=True)
-
-                    elif opt.split_type == 'cv' and opt.folds <= 5:
-
-
-                        results_insilico['model'] += 2
-
-                        mean_preds = results_insilico.groupby(['ID'], as_index=False).mean()[[f'predictions_{opt.target_variable_name}', 'ID']]
-                        mean_preds['model'] = 'Mean'
-
-                        meadian_preds = results_insilico.groupby(['ID'], as_index=False).median()[[f'predictions_{opt.target_variable_name}', 'ID']]
-                        meadian_preds['model'] = 'Median'
-
-                        results_insilico = pd.concat([results_insilico, mean_preds, meadian_preds], axis=0)
-
-                        st.write(results_insilico)
-
-                        results_insilico = results_insilico.rename(columns={'model': 'Inner Fold'})   
-
-                        vio = px.strip(results_insilico, 
-                                        y=f'predictions_{opt.target_variable_name}', 
-                                        color='Inner Fold', 
-                                        custom_data=['ID'],
-                                        title='In-Silico library property predictions', 
-                                        )  
-                        
-                        vio.update_traces(hovertemplate='<br>ID: %{customdata[0]}<br>' + opt.target_variable_name +  ' Value: %{y}<extra></extra>',)
-
-                        vio.update_layout(yaxis_title=f'Predicted {opt.target_variable_name} / {opt.target_variable_units}',
-                                          width=800,)
-                        
-                        st.plotly_chart(vio, use_container_width=True)
-
-                    else:
-
-                        if opt.split_type == 'cv':  
-                            results_insilico['model'] += 2
-
-                        elif opt.split_type == 'ncv':
-                            counter = 0
-
-                            for o in range (1, opt.folds+1):
-                                for i in range(1, opt.folds):
-
-                                    i += 1 if o <= i else i
-
-                                    results_insilico.loc[results_insilico['model'] == counter, 'model'] = f'Outer Fold {o} - Inner Fold {i}'
-
-                                    counter += 1
-
-                        
-                        mean_preds = results_insilico.groupby(['ID'], as_index=False).mean()[[f'predictions_{opt.target_variable_name}', 'ID']]
-                        mean_preds['model'] = 'Mean'
-
-                        meadian_preds = results_insilico.groupby(['ID'], as_index=False).median()[[f'predictions_{opt.target_variable_name}', 'ID']]
-                        meadian_preds['model'] = 'Median'
-
-                        results_insilico = pd.concat([results_insilico, mean_preds, meadian_preds], axis=0)
-                        
-                        st.write(results_insilico)
-
-                        results_insilico = results_insilico.loc[results_insilico['model'].isin(['Mean', 'Median'])]
-
-                        vio = px.strip(results_insilico, 
-                                        y=f'predictions_{opt.target_variable_name}', 
-                                        color='model', 
-                                        custom_data=['ID'],
-                                        title='In-Silico library property predictions', 
-                                        )  
-                        
-                        vio.update_traces(hovertemplate='<br>ID: %{customdata[0]}<br>' + opt.target_variable_name +  ' Value: %{y}<extra></extra>',)
-
-                        vio.update_layout(yaxis_title=f'Predicted {opt.target_variable_name} / {opt.target_variable_units}',
-                                          width=800,
-                                          xaxis_title='')
-                        
-                        st.plotly_chart(vio, use_container_width=True)
 
 
     else:
