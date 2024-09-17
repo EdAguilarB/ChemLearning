@@ -1,6 +1,9 @@
 import streamlit as st
 import os
 import pandas as pd
+import json
+import zipfile
+import io
 
 # Assuming BaseOptions and the training function are already defined as per your original code.
 import plotly.express as px
@@ -190,7 +193,7 @@ def main():
                 opt.folds = folds
 
             # Train the GNN model
-            model_params, model = train_GNNet(opt, df)
+            model_params, model, report = train_GNNet(opt, df)
 
 
             st.success(f"Training started successfully with the following configuration:\n\n"
@@ -204,6 +207,31 @@ def main():
                         f"Batch Size: {batch_size}\n"
                         f"Selected SMILES Columns: {', '.join(smiles_cols)}")
             
+            args = vars(opt)
+
+            with open(f'{opt.experiment_name}.json', 'w') as json_file:
+                json.dump(args, json_file, indent=4)          
+
+            zip_buffer = io.BytesIO()
+
+            with zipfile.ZipFile(zip_buffer, "w") as zip_file:
+                # Write the TXT file
+                report_txt = "".join(report)  # Combine list of strings into a single string
+                zip_file.writestr(f"report_all_{opt.experiment_name}.txt", report_txt)
+                
+                # Write the JSON file
+                json_str = json.dumps(report, indent=4)
+                zip_file.writestr(f"data_{opt.experiment_name}.json", json_str)
+            
+            zip_buffer.seek(0)
+
+            st.download_button(
+                                    label="Download Detailed Report and JSON",
+                                    data=zip_buffer,
+                                    file_name=f"report_and_data_{opt.experiment_name}.zip",
+                                    mime="application/zip"
+                                )
+
 
             if in_silico_mols:
 
@@ -330,24 +358,8 @@ def main():
                         st.plotly_chart(vio, use_container_width=True)
 
 
-
-
-
-        #else:
-        #    st.error("Please ensure all fields are filled and SMILES columns are selected!")
     else:
         st.write("Please select all the training options to start the training.")
-
-
-
-
-
-
-
-
-
-
-
 
 
 if __name__ == "__main__":

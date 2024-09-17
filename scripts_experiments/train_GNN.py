@@ -284,7 +284,7 @@ def train_GNNet(opt, file) -> None:
         mime="text/csv",
         )
     
-    return model_params, models
+    return model_params, models, report_all
 
         #network_outer_report(
         #    log_dir=f"{opt.log_dir_results}/{opt.filename[:-4]}/results_GNN/Fold_{outer}_test_set/",
