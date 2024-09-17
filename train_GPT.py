@@ -224,7 +224,7 @@ def main():
 
                 for model_idx, model in enumerate(model_params):
                     model_buffer = io.BytesIO()
-                    torch.save(model.state_dict(), model_buffer)
+                    torch.save(model, model_buffer)
                     model_buffer.seek(0)
                     zip_file.write(f"model_params_{model_idx}.pt", model_buffer.read())
 
