@@ -3,7 +3,7 @@ import torch.nn as nn
 from model.networks import BaseNetwork
 from torch_geometric.nn import global_mean_pool as gap, global_max_pool as gmp, GCNConv
 import argparse
-from icecream import ic
+
 
 
 class GCN(BaseNetwork):
