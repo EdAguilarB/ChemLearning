@@ -20,5 +20,5 @@ streamlit==1.37.1
 toml==0.10.2
 torch>=2.0.1
 torch_geometric @ git+https://github.com/pyg-team/pytorch_geometric.git@a4447449a7ab185a643dba878e8548c452a62a26
-torchaudio==2.0.2
+torchaudio>=2.0.2
 tqdm==4.65.0
