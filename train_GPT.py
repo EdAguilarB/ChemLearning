@@ -4,6 +4,7 @@ import pandas as pd
 import json
 import zipfile
 import io
+import torch
 
 # Assuming BaseOptions and the training function are already defined as per your original code.
 import plotly.express as px
@@ -13,6 +14,7 @@ import plotly.figure_factory as ff
 
 from options.base_options import BaseOptions
 from scripts_experiments.train_GNN import train_GNNet
+from scripts_experiments.predict import predict_mols
 
 from data.predict_unseen import predict_insilico
 
@@ -218,14 +220,25 @@ def main():
                 
                 # Write the JSON file
                 json_str = json.dumps(json_data, indent=4)
-                zip_file.writestr(f"data_{opt.experiment_name}.json", json_str)
+                zip_file.writestr(f"hyperparameters_{opt.experiment_name}.json", json_str)
+
+                for model_idx, model in enumerate(model_params):
+                    model_buffer = io.BytesIO()
+                    torch.save(model.state_dict(), model_buffer)
+                    model_buffer.seek(0)
+                    zip_file.write(f"model_params_{model_idx}.pt", model_buffer.read())
+
+                model_buffer = io.BytesIO()
+                torch.save(model, model_buffer)
+                model_buffer.seek(0)
+                zip_file.write(f"model_architecture.pt", model_buffer.read())
             
             zip_buffer.seek(0)
 
             st.download_button(
                                     label="Download Detailed Report and JSON",
                                     data=zip_buffer,
-                                    file_name=f"report_and_data_{opt.experiment_name}.zip",
+                                    file_name=f"{opt.experiment_name}_results.zip",
                                     mime="application/zip"
                                 )
 
@@ -233,6 +246,8 @@ def main():
             if in_silico_mols:
 
                 st.title("In-Silico Library Predictions")
+
+                predict_mols(df_insilico)
 
                 graphs_insilico = predict_insilico(df_insilico).process(opt)
                 loader = DataLoader(graphs_insilico)
@@ -256,10 +271,11 @@ def main():
                     ins.add_trace(go.Scatter(x=y_true,
                                             y=y_pred,
                                             mode = 'markers',
-                                            name = 'In-Silico library estrictos',
+                                            name = 'In-Silico library',
                                             marker=dict(color='blue'),
                                             text=idx,
-                                            hoverinfo='text'))
+                                            hoverinfo='text',
+                                            marginal_x='violin',))
                     
                     st.plotly_chart(ins, use_container_width=True)
                 
