@@ -220,7 +220,7 @@ def main():
                 zip_file.writestr(f"report_all_{opt.experiment_name}.txt", report_txt)
                 
                 # Write the JSON file
-                json_str = json.dumps(report, indent=4)
+                json_str = json.dumps(json_file, indent=4)
                 zip_file.writestr(f"data_{opt.experiment_name}.json", json_str)
             
             zip_buffer.seek(0)
