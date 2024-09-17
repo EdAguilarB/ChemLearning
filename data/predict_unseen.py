@@ -9,7 +9,6 @@ import os
 from tqdm import tqdm
 from molvs import standardize_smiles
 import sys
-from data.datasets import reaction_graph
 from sklearn.model_selection import StratifiedKFold, KFold, train_test_split
 
 
