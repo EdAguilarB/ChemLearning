@@ -7,7 +7,6 @@ import numpy as np
 from rdkit import Chem
 import os
 from tqdm import tqdm
-from molvs import standardize_smiles
 import sys
 
 
@@ -54,7 +53,7 @@ class predict_insilico():
             for molecule in opt.mol_cols:
 
 
-                std_smiles = standardize_smiles(mols[molecule])
+                std_smiles = Chem.MolToSmiles(Chem.MolFromSmiles(mols[molecule]), canonical=True)
 
                 all_smiles.append(std_smiles)
 
