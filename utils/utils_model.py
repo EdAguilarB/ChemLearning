@@ -157,7 +157,7 @@ def generate_st_report(opt,
 
     # Predict and get embeddings for training set
     y_pred_train, y_true_train, idx_train, emb_train = predict_network(model, train_loader, True)
-    train_results = pd.DataFrame({f'real_{opt.target_variable_name}': y_true_train, f'predicted_{opt.target_variable_name}': y_pred_train, 'index': idx_train})
+    train_results = pd.DataFrame({f'real_{opt.target_variable_name}': y_true_train, f'predicted_{opt.target_variable_name}': y_pred_train, opt.mol_id_col: idx_train})
     train_results['set'] = 'Training'
     metrics_train, metrics_names = calculate_metrics(y_true_train, y_pred_train, task=opt.problem_type)
 
@@ -167,7 +167,7 @@ def generate_st_report(opt,
 
     # Predict and get embeddings for validation set
     y_pred_val, y_true_val, idx_val, emb_val = predict_network(model, val_loader, True)
-    val_results = pd.DataFrame({f'real_{opt.target_variable_name}': y_true_val, f'predicted_{opt.target_variable_name}': y_pred_val, 'index': idx_val})
+    val_results = pd.DataFrame({f'real_{opt.target_variable_name}': y_true_val, f'predicted_{opt.target_variable_name}': y_pred_val, opt.mol_id_col: idx_val})
     val_results['set'] = 'Validation'
     metrics_val, metrics_names = calculate_metrics(y_true_val, y_pred_val, task=opt.problem_type)
 
@@ -177,7 +177,7 @@ def generate_st_report(opt,
 
     # Predict and get embeddings for test set
     y_pred_test, y_true_test, idx_test, emb_test = predict_network(model, test_loader, True)
-    test_results = pd.DataFrame({f'real_{opt.target_variable_name}': y_true_test, f'predicted_{opt.target_variable_name}': y_pred_test, 'index': idx_test})
+    test_results = pd.DataFrame({f'real_{opt.target_variable_name}': y_true_test, f'predicted_{opt.target_variable_name}': y_pred_test, opt.mol_id_col: idx_test})
     test_results['set'] = 'Test'
     metrics_test, metrics_names = calculate_metrics(y_true_test, y_pred_test, task=opt.problem_type)
 
@@ -189,7 +189,7 @@ def generate_st_report(opt,
     report.append("---------------------------------------------------------\n")
     report.append("\n\n")
 
-    if opt.problem_type == 'regression':
+    if opt.problem_type == 'regression' and opt.show_all:
         fig = go.Figure()
 
         fig.add_trace(go.Scatter(x=y_true_train, 
@@ -228,9 +228,6 @@ def generate_st_report(opt,
                             showlegend=True,
                             )
         
-    
-    
-    if opt.show_all and opt.split_type != 'tvt':
         st.plotly_chart(fig, use_container_width=True)
         st.text("".join(report))
 
@@ -239,7 +236,7 @@ def generate_st_report(opt,
 
     results_all = pd.concat([train_results, val_results, test_results], axis=0)
 
-    if opt.split_type is not 'tvt':
+    if opt.split_type != 'tvt':
         results_all['Inner_Fold'] = inner
         results_all['Outer_Fold'] = outer
 
@@ -601,132 +598,6 @@ def split_data(df:pd.DataFrame):
             yield deepcopy((train, val, test))
 
 
-def predict_tml(model, data:pd.DataFrame, descriptors:list):
 
-    y_pred = model.predict(data[descriptors])
-    y_true = list(data['ddG'])
-    idx = list(data['index'])
-
-    return np.array(y_pred), np.array(y_true), np.array(idx)
-
-
-def tml_report(log_dir,
-               outer, 
-                inner,
-               model, 
-               data, 
-               descriptors,
-               save_all=True):
-    
-    #1) create a directory to store the results
-    log_dir = "{}/Fold_{}_test_set/Fold_{}_val_set".format(log_dir, outer, inner)
-    os.makedirs(log_dir, exist_ok=True)
-
-    #2) Get time of the run
-    today = date.today()
-    today_str = str(today.strftime("%d-%b-%Y"))
-    time = str(datetime.now())[11:]
-    time = time[:8]
-    run_period = "{}, {}\n".format(today_str, time)
-
-    #3) Unfold  train/val/test dataloaders
-    train_data, val_data, test_data = data[0], data[1], data[2]
-    N_train, N_val, N_test = len(train_data), len(val_data), len(test_data)
-    N_tot = N_train + N_val + N_test 
-
-    #4) Save dataframes for future use
-    if save_all:
-        train_data.to_csv("{}/train.csv".format(log_dir))
-        val_data.to_csv("{}/val.csv".format(log_dir))
-        pickle.dump(model, open("{}/model.sav".format(log_dir), 'wb'))
-
-    test_data.to_csv("{}/test.csv".format(log_dir))
-
-    #5) Performance Report
-    file1 = open("{}/performance.txt".format(log_dir), "w")
-    file1.write(run_period)
-    file1.write("---------------------------------------------------------\n")
-    file1.write("Traditional ML algorithm Performance\n")
-    file1.write("Dataset Size = {}\n".format(N_tot))
-    file1.write("***************\n")
-
-    y_pred, y_true, idx = predict_tml(model, train_data, descriptors)
-    metrics, metrics_names = calculate_metrics(y_true, y_pred, task = 'r')
-
-    file1.write("Training set\n")
-    file1.write("Set size = {}\n".format(N_train))
-
-    for name, value in zip(metrics_names, metrics):
-        file1.write("{} = {:.3f}\n".format(name, value))
-    
-    file1.write("***************\n")
-    y_pred, y_true, idx = predict_tml(model, val_data, descriptors)
-    metrics, metrics_names = calculate_metrics(y_true, y_pred, task = 'r')
-
-    file1.write("Validation set\n")
-    file1.write("Set size = {}\n".format(N_val))
-
-    for name, value in zip(metrics_names, metrics):
-        file1.write("{} = {:.3f}\n".format(name, value))
-    
-    file1.write("***************\n")
-
-    y_pred, y_true, idx = predict_tml(model=model, data=test_data, descriptors = descriptors)
-
-    pd.DataFrame({'real_ddG': y_true, 'predicted_ddG': y_pred, 'index': idx}).to_csv("{}/predictions_test_set.csv".format(log_dir))
-
-    face_pred = np.where(y_pred > 0, 1, 0)
-    face_true = np.where(y_true > 0, 1, 0)
-
-    metrics, metrics_names = calculate_metrics(face_true, face_pred, task = 'c')
-
-    correct_side_add = face_pred == face_true
-
-    file1.write("Test set\n")
-    file1.write("Set size = {}\n".format(N_test))
-
-    for name, value in zip(metrics_names, metrics):
-        file1.write("{} = {:.3f}\n".format(name, value))
-    
-    #error = abs(y_pred-y_true)
-    #y_true = y_true[correct_side_add]
-    #y_pred = y_pred[correct_side_add]
-    #idx = idx[correct_side_add]
-
-    file1.write("Test Set Total Correct Face of Addition Predictions = {}\n".format(np.sum(correct_side_add)))
-
-    metrics, metrics_names = calculate_metrics(y_true, y_pred, task = 'r')
-
-    for name, value in zip(metrics_names, metrics):
-        file1.write("{} = {:.3f}\n".format(name, value))
-
-    file1.write("---------------------------------------------------------\n")
-
-    create_st_parity_plot(real = y_true, predicted = y_pred, figure_name = 'outer_{}_inner_{}'.format(outer, inner), save_path = "{}".format(log_dir))
-    #create_it_parity_plot(real = y_true, predicted = y_pred, index = idx, figure_name='outer_{}_inner_{}.html'.format(outer, inner), save_path="{}".format(log_dir))
-
-    file1.write("OUTLIERS (TEST SET)\n")
-    error_test = [(y_pred[i] - y_true[i]) for i in range(len(y_pred))]
-    abs_error_test = [abs(error_test[i]) for i in range(len(y_pred))]
-    std_error_test = np.std(error_test)
-
-    outliers_list, outliers_error_list, index_list = [], [], []
-
-    counter = 0
-
-    for sample in range(len(y_pred)):
-        if abs_error_test[sample] >= 3 * std_error_test:  
-            counter += 1
-            outliers_list.append(idx[sample])
-            outliers_error_list.append(error_test[sample])
-            index_list.append(sample)
-            if counter < 10:
-                file1.write("0{}) {}    Error: {:.2f} kJ/mol    (index={})\n".format(counter, idx[sample], error_test[sample], sample))
-            else:
-                file1.write("{}) {}    Error: {:.2f} kJ/mol    (index={})\n".format(counter, idx[sample], error_test[sample], sample))
-
-    file1.close()
-
-    return 'Report saved in {}'.format(log_dir)
 
 

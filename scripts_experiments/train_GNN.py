@@ -55,6 +55,7 @@ def train_GNNet(opt, file) -> None:
 
     model_params = []
     models = []
+    models_names = []
 
     # Initiate the counter of the total runs
     counter = 0
@@ -181,10 +182,6 @@ def train_GNNet(opt, file) -> None:
             print(f"Train size: {len(train_loader.dataset)}, Val size: {len(val_loader.dataset)}, Test size: {len(test_loader.dataset)}")
 
             print('---------------------------------')
-
-            # Create parity plot
-
-
             
             # Generate the training report
             result_run, report = generate_st_report(opt = opt, 
@@ -199,11 +196,11 @@ def train_GNNet(opt, file) -> None:
 
             model_params.append(best_model_params)
             models.append(model)
+            models_names.append(f'Outer Fold {outer} - Inner Fold {real_inner}')
             
             del model, train_loader, val_loader, test_loader, train_list, val_list, test_list, best_model_params, best_epoch, fig
         
         print(f'All runs for outer test fold {outer} completed')
-        print('Generating outer report')
 
 
     st.title("Final Results")
@@ -212,21 +209,33 @@ def train_GNNet(opt, file) -> None:
 
     st.write("CSV file with all predictions and real values")
 
-    st.write(results_all)
 
     if opt.split_type != 'tvt':
 
         st.write("CSV file with mean predictions and real values")
 
-        results_all = results_all.groupby(['index', 'set'], as_index=False).mean()
+        mean_preds = results_all.groupby([opt.mol_id_col, 'set'], as_index=False).mean()
+        mean_preds[['Inner_Fold', 'Outer_Fold']] = 'Mean'
 
-        results_all = results_all.drop(columns=['Inner_Fold', 'Outer_Fold'])
+        median_preds = results_all.groupby([opt.mol_id_col, 'set'], as_index=False).median()
+        median_preds[['Inner_Fold', 'Outer_Fold']] = 'Median'
+
+        results_all = pd.concat([results_all, mean_preds, median_preds], axis=0)
+
+        #results_all = results_all.groupby([opt.mol_id_col, 'set'], as_index=False).mean()
+
+        #results_all = results_all.drop(columns=['Inner_Fold', 'Outer_Fold'])
+
+        results_all_plot = results_all.loc[results_all['Inner_Fold'] == 'Mean']
+
+    else:
+        results_all_plot = results_all
     
-        st.write(results_all)
+    st.write(results_all)
 
-    results_train = results_all.loc[results_all['set'] == 'Training']
-    results_val = results_all.loc[results_all['set'] == 'Validation']
-    results_test = results_all.loc[results_all['set'] == 'Test']
+    results_train = results_all_plot.loc[results_all_plot['set'] == 'Training']
+    results_val = results_all_plot.loc[results_all_plot['set'] == 'Validation']
+    results_test = results_all_plot.loc[results_all_plot['set'] == 'Test']
 
     fig = go.Figure()
 
@@ -272,24 +281,10 @@ def train_GNNet(opt, file) -> None:
     
     st.plotly_chart(fig, use_container_width=True)
 
-
-
-
-    results_all_csv = results_all.to_csv(index=True)
-
-    st.download_button(
-        label="Download Detailed report",
-        data="".join(report_all),
-        file_name=f"report_all_{opt.experiment_name}.txt",
-        mime="text/csv",
-        )
     
-    return model_params, models, report_all
+    return model_params, models, report_all, results_all
 
-        #network_outer_report(
-        #    log_dir=f"{opt.log_dir_results}/{opt.filename[:-4]}/results_GNN/Fold_{outer}_test_set/",
-        #    outer=outer,
-        #)
+
 
 
     

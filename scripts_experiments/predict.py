@@ -11,111 +11,126 @@ sys.path.append(os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
 
 def predict_mols(opt, df:pd.DataFrame, model, model_params):
 
+    """
+    Predicts the target variable of the molecules in the in-silico library using the trained model.
+    Args:
+    opt: Namespace object with the options used in the training process.
+    df: DataFrame with the in-silico library.
+    model: List with models with the architecture chosen.
+    model_params: List with the parameters of the models.
+    Returns:
+    results_insilico: DataFrame with the predictions of the target variable of the in-silico library.
+    """
+
     graphs_insilico = predict_insilico(df).process(opt)
     loader = DataLoader(graphs_insilico)
 
-    results_insilico = pd.DataFrame(columns=[f'predictions_{opt.target_variable_name}', f'real_values_{opt.target_variable_name}', 'ID', 'model'])
+    results_insilico = pd.DataFrame(columns=[f'real_{opt.target_variable_name}', f'predicted_{opt.target_variable_name}', opt.mol_id_col_insilico, 'model'])
 
     for i in range(len(model)):
         model[i].load_state_dict(model_params[i])
         y_pred, y_true, idx, embs = predict_network(model[i], loader, True)
-        results_model = pd.DataFrame({f'predictions_{opt.target_variable_name}': y_pred, f'real_values_{opt.target_variable_name}': y_true, 'ID': idx, 'model': i})
+        results_model = pd.DataFrame({f'real_{opt.target_variable_name}': y_true, f'predicted_{opt.target_variable_name}': y_pred,  opt.mol_id_col_insilico: idx, 'model': i})
         results_insilico = pd.concat([results_insilico, results_model], axis=0)
 
     st.write('Results in-Silico library')
 
+    if opt.split_type == 'tvt':
+        results_insilico = results_insilico.drop(columns=['model'])
+
+    else:
+        mean_preds = results_insilico.groupby([opt.mol_id_col_insilico], as_index=False).mean()
+        mean_preds['model'] = 'Mean'
+
+        meadian_preds = results_insilico.groupby([opt.mol_id_col_insilico], as_index=False).median()
+        meadian_preds['model'] = 'Median'
+    
+        if opt.split_type == 'cv':
+            results_insilico['model'] += 2
+            results_insilico['model'] = 'Inner Fold ' + results_insilico['model'].astype(str)
+        
+        elif opt.split_type == 'ncv':
+            counter = 0
+            for o in range(1, opt.folds+1):
+                for i in range(1, opt.folds):
+                    i += 1 if o <= i else i
+                    results_insilico.loc[results_insilico['model'] == counter, 'model'] = f'Outer Fold {o} - Inner Fold {i}'
+                    counter += 1
+        
+        results_insilico = pd.concat([results_insilico, mean_preds, meadian_preds], axis=0)
+
     if None not in y_true:
 
-        st.write(results_insilico)
+        if opt.split_type == 'tvt':
 
-        par = go.Figure()
-
-        par.add_trace(go.Scatter(x=y_true,
-                                 y=y_pred,
-                                 mode='markers',
-                                 marker=dict(color='blue'),
-                                 text=idx,
-                                 hoverinfo='text',))
-        
-        st.plotly_chart(par, use_container_width=True)
-    
-    else:
-        results_insilico = results_insilico.dropna(axis=1)
-
-        if results_insilico.nunique() == 1:
-            results_insilico = results_insilico.drop(columns=['model'])
-
-            st.write(results_insilico)
-
-            vio = px.violin(y=y_pred,
-                            box = True,
-                            points='all', 
-                            title='In-Silico library property predictions')
-            
-            st.plotly_chart(vio, use_container_width=True)
+            pre = px.scatter(results_insilico,
+                            x=f'real_{opt.target_variable_name}',
+                            y=f'predicted_{opt.target_variable_name}',
+                            custom_data=[opt.mol_id_col_insilico],
+                            title='In-Silico library property predictions',
+                            )
 
         elif opt.split_type == 'cv' and opt.folds <= 5:
 
-            results_insilico['model'] += 2
+            pre = px.scatter(results_insilico,
+                            x=f'real_{opt.target_variable_name}',
+                            y=f'predicted_{opt.target_variable_name}',
+                            color='model',
+                            custom_data=[opt.mol_id_col_insilico],
+                            title='In-Silico library property predictions',
+                            )
+            
+        else:
 
-            mean_preds = results_insilico.groupby(['ID'], as_index=False).mean()[[f'predictions_{opt.target_variable_name}', 'ID']]
-            mean_preds['model'] = 'Mean'
+            pre = px.scatter(results_insilico.loc[(results_insilico['model'] == 'Mean') | (results_insilico['model'] == 'Median')],
+                            x=f'real_{opt.target_variable_name}',
+                            y=f'predicted_{opt.target_variable_name}',
+                            color='model',
+                            custom_data=[opt.mol_id_col_insilico],
+                            title='In-Silico library property predictions',
+                            )
 
-            meadian_preds = results_insilico.groupby(['ID'], as_index=False).median()[[f'predictions_{opt.target_variable_name}', 'ID']]
-            meadian_preds['model'] = 'Median'
+        pre.update_layout(xaxis_title=f'Real {opt.target_variable_name} / {opt.target_variable_units}',
+                            yaxis_title=f'Predicted {opt.target_variable_name} / {opt.target_variable_units}',
+                            width=800,)
+            
+    else:
 
-            results_insilico = pd.concat([results_insilico, mean_preds, meadian_preds], axis=0)
+        results_insilico = results_insilico.dropna(axis=1)
 
-            st.write(results_insilico)
+        if opt.split_type == 'tvt':
 
-            vio = px.strip(results_insilico,
-                           y=f'predictions_{opt.target_variable_name} / {opt.target_variable_units}',
+            pre = px.violin(results_insilico,
+                            y=f'predicted_{opt.target_variable_name}',
+                            box=True,
+                            points='all',
+                            custom_data=[opt.mol_id_col_insilico],
+                            title='In-Silico library property predictions',
+                            )
+
+        elif opt.split_type == 'cv' and opt.folds <= 5:
+
+            pre = px.strip(results_insilico,
+                           y=f'predicted_{opt.target_variable_name}',
                            color='model',
-                           custom_data=['ID'],
+                           custom_data=[opt.mol_id_col_insilico],
                            title='In-Silico library property predictions',
                            )
-            
-            vio.update_traces(hovertemplate='<br>ID: %{customdata[0]}<br>' + opt.target_variable_name +  ' Value: %{y}<extra></extra>',)
-
-            vio.update_layout(yaxis_title=f'Predicted {opt.target_variable_name} / {opt.target_variable_units}',
-                                          width=800,)
-            
-            st.plotly_chart(vio, use_container_width=True)
 
         else:
 
-            if opt.split_type == 'cv':
-                results_insilico['model'] += 2
-
-            elif opt.split_type == 'ncv':
-                counter = 0
-
-                for o in range(1, opt.outer_folds+1):
-                    for i in range(1, opt.inner_folds):
-                        i += 1 if o <= i else i
-                        results_insilico.loc[results_insilico['model'] == counter, 'model'] = f'Outer Fold {o} - Inner Fold {i}'
-                        counter += 1
-
-            mean_preds = results_insilico.groupby(['ID'], as_index=False).mean()[[f'predictions_{opt.target_variable_name}', 'ID']]
-            mean_preds['model'] = 'Mean'
-
-            meadian_preds = results_insilico.groupby(['ID'], as_index=False).median()[[f'predictions_{opt.target_variable_name}', 'ID']]
-            meadian_preds['model'] = 'Median'
-
-            results_insilico = pd.concat([results_insilico, mean_preds, meadian_preds], axis=0)
-
-            st.write(results_insilico)
-
-            vio = px.strip(results_insilico,
-                           y=f'predictions_{opt.target_variable_name} / {opt.target_variable_units}',
+            pre = px.strip(results_insilico.loc[(results_insilico['model'] == 'Mean') | (results_insilico['model'] == 'Median')],
+                           y=f'predicted_{opt.target_variable_name}',
                            color='model',
-                           custom_data=['ID'],
+                           custom_data=[opt.mol_id_col_insilico],
                            title='In-Silico library property predictions',
                            )
-            
-            vio.update_traces(hovertemplate='<br>ID: %{customdata[0]}<br>' + opt.target_variable_name +  ' Value: %{y}<extra></extra>',)
-
-            vio.update_layout(yaxis_title=f'Predicted {opt.target_variable_name} / {opt.target_variable_units}',
+        
+        pre.update_layout(yaxis_title=f'Predicted {opt.target_variable_name} / {opt.target_variable_units}',
                                           width=800,)
-            
-            st.plotly_chart(vio, use_container_width=True)
+
+    st.write(results_insilico)
+    pre.update_traces(hovertemplate='<br>ID: %{customdata[0]}<br>' + opt.target_variable_name +  ' Value: %{y}<extra></extra>',)
+    st.plotly_chart(pre, use_container_width=True)
+
+    return results_insilico

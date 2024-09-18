@@ -195,7 +195,7 @@ def main():
                 opt.folds = folds
 
             # Train the GNN model
-            model_params, model, report = train_GNNet(opt, df)
+            model_params, model, report, results_seen = train_GNNet(opt, df)
 
 
             st.success(f"Training started successfully with the following configuration:\n\n"
@@ -209,18 +209,13 @@ def main():
                         f"Batch Size: {batch_size}\n"
                         f"Selected SMILES Columns: {', '.join(smiles_cols)}")
             
-
-
-
             if in_silico_mols:
-
                 st.title("In-Silico Library Predictions")
+                results_insilico = predict_mols(opt, df_insilico, model, model_params)
 
-                predict_mols(opt, df_insilico, model, model_params)
-
+            st.success(f"In-silico library {opt.target_variable_name} values predicted successfully.")
 
             json_data = vars(opt)        
-
             zip_buffer = io.BytesIO()
 
             with zipfile.ZipFile(zip_buffer, "w") as zip_file:
@@ -242,6 +237,11 @@ def main():
                 torch.save(model, model_buffer)
                 model_buffer.seek(0)
                 zip_file.writestr(f"model_architecture.pt", model_buffer.read())
+
+                zip_file.writestr(f"results_{opt.experiment_name}.csv", results_seen.to_csv(index=False))
+
+                if in_silico_mols:
+                    zip_file.writestr(f"results_insilico_{opt.experiment_name}.csv", results_insilico.to_csv(index=False))
             
             zip_buffer.seek(0)
 
