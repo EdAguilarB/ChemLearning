@@ -70,7 +70,7 @@ class predict_insilico():
 
                         if global_feat in opt.ohe_graph_feat:
 
-                            uni_vals = self.data[global_feat].unique()
+                            uni_vals = opt.ohe_pos_vals[global_feat]
 
                             global_features += self._one_h_e(mols[global_feat], uni_vals)
 
@@ -81,7 +81,7 @@ class predict_insilico():
 
 
                         if global_feat in opt.ohe_graph_feat:
-                            uni_vals = self.data[global_feat].unique()
+                            uni_vals = opt.ohe_pos_vals[global_feat]
                             global_features += self._one_h_e('qWeRtYuIoP', uni_vals)
                         else:
                             global_features += [0]
@@ -121,7 +121,7 @@ class predict_insilico():
             
             all_graphs.append(data)
 
-            progress_bar.progress(index / self.data.shape[0])
+            progress_bar.progress(int(index+1) / self.data.shape[0])
 
 
         return all_graphs

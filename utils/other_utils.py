@@ -347,42 +347,34 @@ def get_graph_by_idx(loader, idx):
     return None
 
 
-def mol_prep(mol_graph, mol:str):
+import streamlit as st
 
-    mol_l = AddHs(Chem.MolFromSmiles(mol_graph.ligand[0]))
-    mol_s = AddHs(Chem.MolFromSmiles(mol_graph.substrate[0]))
-    mol_b = AddHs(Chem.MolFromSmiles(mol_graph.boron[0]))
+def mol_prep(opt, mol_graph, ):
 
-    atoms_l = mol_l.GetNumAtoms()
-    atoms_s = mol_s.GetNumAtoms()
-    atoms_b = mol_b.GetNumAtoms()
+    mols = {}
 
-    if mol == 'l':
-        fa = 0
-        la = atoms_l
+    ia = 0
 
-        AllChem.EmbedMolecule(mol_l, AllChem.ETKDGv3())
-        coords = mol_l.GetConformer().GetPositions()
-        atom_symbol = [atom.GetSymbol() for atom in mol_l.GetAtoms()]
+    for mol_name, smiles in zip(opt.mol_cols, mol_graph.smiles[0]):
 
-    elif mol == 's':
-        fa = atoms_l
-        la = atoms_l + atoms_s 
+        attributes = []
 
-        AllChem.EmbedMolecule(mol_s, AllChem.ETKDGv3())
-        coords = mol_s.GetConformer().GetPositions()
-        atom_symbol = [atom.GetSymbol() for atom in mol_s.GetAtoms()]
+        mol = AddHs(Chem.MolFromSmiles(smiles))
+        la = mol.GetNumAtoms()
+        AllChem.EmbedMolecule(mol, AllChem.ETKDGv3())
+        coords = mol.GetConformer().GetPositions()
+        atom_symbol = [atom.GetSymbol() for atom in mol.GetAtoms()]
 
-    elif mol == 'b':
-        fa = atoms_l + atoms_s 
-        la = atoms_l + atoms_s +atoms_b
+        attributes.append(ia)
+        attributes.append(ia+la)
+        attributes.append(coords)
+        attributes.append(atom_symbol)
 
-        AllChem.EmbedMolecule(mol_b, AllChem.ETKDGv3())
-        coords = mol_b.GetConformer().GetPositions()
-        atom_symbol = [atom.GetSymbol() for atom in mol_b.GetAtoms()]
+        mols[mol_name] = attributes
 
-    else:
-        print('No valid molecule selected')
+        ia += la
+
+    fa, la, coords, atom_symbol = mols[opt.explain_mol] 
 
     return fa, la, coords, atom_symbol
 
@@ -428,12 +420,13 @@ def normalise_masks(edge_mask_dict, node_mask):
 
 
 colors_n = {
-    'C': 'black',
-    'O': 'red',
-    'N': 'blue',
+    'C': '#909090',
+    'O': '#FF0D0D',
+    'N': '#3050F8',
     'H': 'lightgray',
-    'B': 'brown',
-    'F': 'pink'
+    'B': '#FFB5B5',
+    'F': '#90E050',
+    'Cl': '#1FF01F'
 }
 
 colors_cb = {
@@ -444,14 +437,7 @@ colors_cb = {
     'B': '#FFA500'
 }
 
-sizes = {
-    'C': 69/2,
-    'O': 66/2,
-    'N': 71/2,
-    'H': 31/2,
-    'B': 84/2,
-    'F': 64/2
-}
+
 
 def select_palette(palette, neg_nodes, neg_edges):
 
@@ -592,12 +578,12 @@ def all_traces(atoms, atoms_imp, bonds, bonds_imp):
                                 xaxis_title='', yaxis_title='', zaxis_title=''))
 
 
-    fig.show()
+    st.plotly_chart(fig, use_container_width=True)
 
-def plot_molecule_importance(mol_graph, mol, explanation, palette):
+def plot_molecule_importance(opt, mol_graph, explanation, palette):
 
     edge_idx = mol_graph.edge_index
-    fa, la, coords, atom_symbol = mol_prep(mol_graph=mol_graph, mol=mol)
+    fa, la, coords, atom_symbol = mol_prep(opt=opt, mol_graph=mol_graph)
     edge_coords = dict(zip(range(fa, la), coords))
     edge_mask_dict, node_mask = get_masks(explanation=explanation, fa=fa, la=la, edge_idx=edge_idx)
 
@@ -613,6 +599,18 @@ def plot_molecule_importance(mol_graph, mol, explanation, palette):
 
     neg_edges = [True if num < 0 else False for num in list(edge_mask_dict.values())]
     neg_nodes = [True if num < 0 else False for num in node_mask]
+
+    scale_factor = opt.scale_factor
+
+    sizes = {
+        'C': 69/scale_factor,
+        'O': 66/scale_factor,
+        'N': 71/scale_factor,
+        'H': 31/scale_factor,
+        'B': 84/scale_factor,
+        'F': 64/scale_factor,
+        'Cl': 99/scale_factor
+        }
 
     colors_atoms, color_nodes_imp, color_edges_imp = select_palette(palette=palette, neg_nodes=neg_nodes, neg_edges=neg_edges)
 

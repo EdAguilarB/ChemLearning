@@ -1,0 +1,94 @@
+{
+    "train_GNN": true,
+    "train_tml": true,
+    "compare_models": true,
+    "predict_unseen": true,
+    "shapley_analysis": true,
+    "denoise_graph": true,
+    "GNNExplainer": true,
+    "experiment_name": "my_experiment",
+    "root": "data/datasets/rhcaa_learning",
+    "filename": "learning.csv",
+    "filename_final_test": "final_test.csv",
+    "root_final_test": "data/datasets/rhcaa_final_test",
+    "root_predict": "data/datasets/rhcaa_final_test",
+    "filename_predict": "final_test.csv",
+    "predict_model": "learning_set",
+    "log_dir_results": "my_experiment",
+    "target_variable": "ddG",
+    "target_variable_units": "kJ/mol",
+    "mol_id_col": "index",
+    "mol_cols": [
+        "boron reagent",
+        "Ligand",
+        "substrate"
+    ],
+    "graph_features": {
+        "Confg": [
+            "Ligand"
+        ],
+        "temp_norm": [
+            "Ligand",
+            "substrate",
+            "boron reagent"
+        ]
+    },
+    "ohe_graph_feat": [
+        "Confg"
+    ],
+    "network_name": "GCN",
+    "split_type": "cv",
+    "split_method": "stratified",
+    "test_size": 0.2,
+    "val_size": 0.2,
+    "folds": 5,
+    "n_classes": 1,
+    "n_convolutions": 2,
+    "readout_layers": 2,
+    "embedding_dim": 64,
+    "improved": true,
+    "problem_type": "regression",
+    "optimizer": "Adam",
+    "lr": 0.01,
+    "early_stopping": 6,
+    "scheduler": "ReduceLROnPlateau",
+    "step_size": 7,
+    "gamma": 0.7,
+    "min_lr": 1e-08,
+    "batch_size": 40,
+    "epochs": 250,
+    "tml_algorithm": "gb",
+    "explain_model": [
+        8,
+        10
+    ],
+    "denoise_reactions": 1,
+    "denoise_based_on": null,
+    "denoise_mol": "ligand",
+    "norm_denoise": false,
+    "shap_index": [
+        82,
+        416,
+        89,
+        91,
+        95,
+        97
+    ],
+    "shap_mol": [
+        "l",
+        "i",
+        "g",
+        "a",
+        "n",
+        "d"
+    ],
+    "global_seed": 20232023,
+    "show_all": true,
+    "target_variable_name": "ddG",
+    "ohe_pos_vals": {
+        "Confg": [
+            2,
+            1
+        ]
+    }
+}

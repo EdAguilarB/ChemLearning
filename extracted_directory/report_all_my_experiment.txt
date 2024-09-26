@@ -1,0 +1,132 @@
+Training Report Using Fold 2 as Validation Set
+====================
+
+24-Sep-2024, 15:51:33
+Training set
+Set size = 400
+R2 = 0.9446492886071608
+MAE = 1.6669855117797852
+RMSE = 2.206752199069239
+Mean Bias Error = 0.2603635787963867
+Mean Absolute Percentage Error = 0.21244412660598755
+Error Standard Deviation = 2.1913387775421143
+Validation set
+Set size = 134
+R2 = 0.8900552205841005
+MAE = 2.231438398361206
+RMSE = 3.082385527503192
+Mean Bias Error = 0.14689601957798004
+Mean Absolute Percentage Error = 0.2954046428203583
+Error Standard Deviation = 3.078883409500122
+Test set
+Set size = 134
+R2 = 0.8878475308706327
+MAE = 2.3106884956359863
+RMSE = 3.1753340778156405
+Mean Bias Error = 0.24356329441070557
+Mean Absolute Percentage Error = 0.29698044061660767
+Error Standard Deviation = 3.1659789085388184
+
+
+---------------------------------------------------------
+
+
+Training Report Using Fold 3 as Validation Set
+====================
+
+24-Sep-2024, 15:51:48
+Training set
+Set size = 400
+R2 = 0.9741546010582174
+MAE = 1.1653661727905273
+RMSE = 1.5122664689037382
+Mean Bias Error = -0.3606942296028137
+Mean Absolute Percentage Error = 0.15161725878715515
+Error Standard Deviation = 1.4686216115951538
+Validation set
+Set size = 134
+R2 = 0.921887935733288
+MAE = 1.9559931755065918
+RMSE = 2.575094117601929
+Mean Bias Error = -0.1908983737230301
+Mean Absolute Percentage Error = 0.26810741424560547
+Error Standard Deviation = 2.5680086612701416
+Test set
+Set size = 134
+R2 = 0.8612723991674252
+MAE = 2.373748779296875
+RMSE = 3.531558538140489
+Mean Bias Error = -0.007273574359714985
+Mean Absolute Percentage Error = 0.315848171710968
+Error Standard Deviation = 3.5315511226654053
+
+
+---------------------------------------------------------
+
+
+Training Report Using Fold 4 as Validation Set
+====================
+
+24-Sep-2024, 15:52:16
+Training set
+Set size = 401
+R2 = 0.9649852009297092
+MAE = 1.3579438924789429
+RMSE = 1.7382104752094694
+Mean Bias Error = 0.2854083478450775
+Mean Absolute Percentage Error = 0.20414993166923523
+Error Standard Deviation = 1.7146188020706177
+Validation set
+Set size = 133
+R2 = 0.9083531554598704
+MAE = 2.1074025630950928
+RMSE = 2.8957889105227683
+Mean Bias Error = 0.25077956914901733
+Mean Absolute Percentage Error = 0.26193296909332275
+Error Standard Deviation = 2.8849096298217773
+Test set
+Set size = 134
+R2 = 0.9328565883246602
+MAE = 1.8413878679275513
+RMSE = 2.4568955910110213
+Mean Bias Error = 0.4250761568546295
+Mean Absolute Percentage Error = 0.24730773270130157
+Error Standard Deviation = 2.419844150543213
+
+
+---------------------------------------------------------
+
+
+Training Report Using Fold 5 as Validation Set
+====================
+
+24-Sep-2024, 15:52:47
+Training set
+Set size = 401
+R2 = 0.9620183760309765
+MAE = 1.4429326057434082
+RMSE = 1.8240694887577322
+Mean Bias Error = 0.3998959958553314
+Mean Absolute Percentage Error = 0.18380630016326904
+Error Standard Deviation = 1.7796945571899414
+Validation set
+Set size = 133
+R2 = 0.9036984423729609
+MAE = 2.002391815185547
+RMSE = 2.9036702837862567
+Mean Bias Error = 0.1628371775150299
+Mean Absolute Percentage Error = 0.2903495132923126
+Error Standard Deviation = 2.8991007804870605
+Test set
+Set size = 134
+R2 = 0.9231293841998008
+MAE = 1.875614047050476
+RMSE = 2.6288460303745476
+Mean Bias Error = 0.5182918906211853
+Mean Absolute Percentage Error = 0.25616997480392456
+Error Standard Deviation = 2.5772476196289062
+
+
+---------------------------------------------------------
+
+

@@ -10,6 +10,8 @@ import os
 from seaborn import violinplot, stripplot, jointplot, barplot
 from math import sqrt
 
+import streamlit as st
+
 
 def create_st_parity_plot(real, predicted, figure_name, save_path=None):
     """
@@ -91,6 +93,50 @@ def create_it_parity_plot(real, predicted, index, figure_name, save_path=None):
         save_path = os.path.join(save_path, figure_name)
         os.makedirs(os.path.dirname(save_path), exist_ok=True)
         fig.write_html(save_path)
+
+def plot_tsne_scatter_matrix(df: pd.DataFrame, feature_cols, args):
+    """
+    Generates a t-SNE scatter matrix from a user-provided dataset.
+
+    :param df: The feature data as a pandas DataFrame.
+    :param args: Arguments containing number of components, perplexity, and column to color by.
+    """
+
+    features = df[feature_cols]
+    # Apply t-SNE to reduce dimensionality
+    tsne = TSNE(n_components=args.num_components, perplexity=args.perplexity)
+    components = tsne.fit_transform(features)
+    
+    # Labels for the plot
+    labels = {str(i): f"t-SNE {i+1}" for i in range(args.num_components)}
+    labels['color'] = args.color_by
+    
+    # Determine whether to use continuous or discrete coloring
+    color_by_column = df[args.color_by]
+    
+    if pd.api.types.is_numeric_dtype(color_by_column):
+        # Use gradient coloring for continuous values
+        fig = px.scatter_matrix(
+            components,
+            color=color_by_column,
+            dimensions=range(args.num_components),
+            labels=labels,
+            title=f't-SNE Scatter Matrix (colored by {args.color_by})',
+            color_continuous_scale='Viridis'
+        )
+    else:
+        # Use discrete coloring for categorical values
+        fig = px.scatter_matrix(
+            components,
+            color=color_by_column.astype(str),  # Convert to string for discrete colors
+            dimensions=range(args.num_components),
+            labels=labels,
+            title=f't-SNE Scatter Matrix (colored by {args.color_by})'
+        )
+    
+    fig.update_traces(diagonal_visible=False)
+    st.plotly_chart(fig)
+
 
 
 def plot_tsne_with_subsets(data_df, feature_columns, color_column, set_column, fig_name=None, save_path=None, perplexity=30, learning_rate=200, n_iter=1000, show = False):

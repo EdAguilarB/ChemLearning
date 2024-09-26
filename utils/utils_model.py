@@ -80,7 +80,7 @@ def eval_network(model, loader, device):
     return loss / len(loader.dataset)
 
 
-def predict_network(model, loader, return_emb = False):
+def predict_network(opt, model, loader, return_emb = False):
     model.to('cpu')
     model.eval()
 
@@ -111,9 +111,9 @@ def predict_network(model, loader, return_emb = False):
 
     embeddings = pd.DataFrame(embeddings)
 
-    embeddings['ddG_exp'] = y_true
-    embeddings['ddG_pred'] = y_pred
-    embeddings['index'] = idx
+    #embeddings[f'real_{opt.target_variable_name}'] = y_true
+    embeddings[f'predicted_{opt.target_variable_name}'] = y_pred
+    #embeddings['ID'] = idx
 
     if return_emb == True:
         return y_pred, y_true, idx, embeddings
