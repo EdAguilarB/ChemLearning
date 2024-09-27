@@ -156,7 +156,7 @@ def generate_st_report(opt,
     model.load_state_dict(model_params)
 
     # Predict and get embeddings for training set
-    y_pred_train, y_true_train, idx_train, emb_train = predict_network(model, train_loader, True)
+    y_pred_train, y_true_train, idx_train  = predict_network(opt=opt, model=model, loader= train_loader, return_emb=False)
     train_results = pd.DataFrame({f'real_{opt.target_variable_name}': y_true_train, f'predicted_{opt.target_variable_name}': y_pred_train, opt.mol_id_col: idx_train})
     train_results['set'] = 'Training'
     metrics_train, metrics_names = calculate_metrics(y_true_train, y_pred_train, task=opt.problem_type)
@@ -166,7 +166,7 @@ def generate_st_report(opt,
     report.extend([f"{Metric} = {Value}\n" for Metric, Value in zip(metrics_names, metrics_train)])
 
     # Predict and get embeddings for validation set
-    y_pred_val, y_true_val, idx_val, emb_val = predict_network(model, val_loader, True)
+    y_pred_val, y_true_val, idx_val = predict_network(opt=opt, model=model, loader= val_loader, return_emb=False)
     val_results = pd.DataFrame({f'real_{opt.target_variable_name}': y_true_val, f'predicted_{opt.target_variable_name}': y_pred_val, opt.mol_id_col: idx_val})
     val_results['set'] = 'Validation'
     metrics_val, metrics_names = calculate_metrics(y_true_val, y_pred_val, task=opt.problem_type)
@@ -176,7 +176,7 @@ def generate_st_report(opt,
     report.extend([f"{Metric} = {Value}\n" for Metric, Value in zip(metrics_names, metrics_val)])
 
     # Predict and get embeddings for test set
-    y_pred_test, y_true_test, idx_test, emb_test = predict_network(model, test_loader, True)
+    y_pred_test, y_true_test, idx_test = predict_network(opt=opt, model=model, loader= test_loader, return_emb=False)
     test_results = pd.DataFrame({f'real_{opt.target_variable_name}': y_true_test, f'predicted_{opt.target_variable_name}': y_pred_test, opt.mol_id_col: idx_test})
     test_results['set'] = 'Test'
     metrics_test, metrics_names = calculate_metrics(y_true_test, y_pred_test, task=opt.problem_type)
@@ -231,8 +231,7 @@ def generate_st_report(opt,
         st.plotly_chart(fig, use_container_width=True)
         st.text("".join(report))
 
-    # Combine embeddings for further use if needed
-    emb_all = pd.concat([emb_train, emb_val, emb_test], axis=0)
+
 
     results_all = pd.concat([train_results, val_results, test_results], axis=0)
 

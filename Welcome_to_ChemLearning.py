@@ -30,9 +30,9 @@ Before you get started, ensure that your dataset is properly structured in a CSV
 
 ### Navigation
 On the **left side menu**, you will find three main pages to guide you through the process:
-1. **1_train_GNN**: Here, you can upload your dataset and begin training your GNN models. You'll be able to set your hyperparameters and monitor the training process.
-2. **2_predict**: Once your model is trained, you can use this page to upload a new dataset for **prediction**. Simply upload a CSV file with the molecules of interest, and the app will predict the properties based on the trained model.
-3. **3_explain_GNN**: To understand the inner workings of your GNN, this page provides **explainability plots**. You can explore how the model arrived at certain predictions, helping you gain insight into the molecular features driving the predictions.
+1. **👩‍💻 Train GNN**: Here, you can upload your dataset and begin training your GNN models. You'll be able to set your hyperparameters and monitor the training process.
+2. **🫣 Predict**: Once your model is trained, you can use this page to upload a new dataset for **prediction**. Simply upload a CSV file with the molecules of interest, and the app will predict the properties based on the trained model.
+3. **🧐 Explain GNN**: To understand the inner workings of your GNN, this page provides **explainability plots**. You can explore how the model arrived at certain predictions, helping you gain insight into the molecular features driving the predictions.
 
 ### Get Started!
 Select a page from the menu to start training your GNN models or make predictions.

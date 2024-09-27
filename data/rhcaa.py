@@ -144,7 +144,7 @@ class rhcaa_diene(reaction_graph):
         st.success("Graphs generated succesfully!")
     
     
-    def _get_node_feats(self, mol, graph_feat):
+    def _get_node_feats(self, mol, graph_feat=None):
 
         all_node_feats = []
         CIPtuples = dict(Chem.FindMolChiralCenters(mol, includeUnassigned=False))
@@ -152,20 +152,21 @@ class rhcaa_diene(reaction_graph):
         for atom in mol.GetAtoms():
             node_feats = []
             # Feature 1: Atomic number        
-            node_feats += self._one_h_e(atom.GetSymbol(), self._elem_list)
+            node_feats += self._one_h_e(atom.GetSymbol(), self._elem_list, None, 'Atomic Symbol')
             # Feature 2: Atom degree
-            node_feats += self._one_h_e(atom.GetDegree(), [1, 2, 3, 4])
+            node_feats += self._one_h_e(atom.GetDegree(), [0, 1, 2, 3, 4, 5, 6], None, 'Atom Degree')
             # Feature 3: Hybridization
-            node_feats += self._one_h_e(atom.GetHybridization(), [0,2,3,4])
+            node_feats += self._one_h_e(atom.GetHybridization(), [0,1,2,3,4,5,6], None, 'Atom Hybridization')
             # Feature 4: Aromaticity
             node_feats += [atom.GetIsAromatic()]
             # Feature 5: In Ring
             node_feats += [atom.IsInRing()]
             # Feature 6: Chirality
-            node_feats += self._one_h_e(self._get_atom_chirality(CIPtuples, atom.GetIdx()), ['R', 'S'], 'No_Stereo_Center')
+            node_feats += self._one_h_e(self._get_atom_chirality(CIPtuples, atom.GetIdx()), ['R', 'S'], 'No_Stereo_Center', 'Atom Chirality')
 
             # Graph level features
-            node_feats += graph_feat
+            if graph_feat is not None:
+                node_feats += graph_feat
 
             # Append node features to matrix
             all_node_feats.append(node_feats)

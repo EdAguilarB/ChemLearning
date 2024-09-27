@@ -41,13 +41,13 @@ Once your prediction is ready, choose from various explainability methods to und
 ### 🆔 **Step 4: Select a Molecule to Explain**
 If your CSV contains **multiple molecules**, you’ll have the option to **select a specific molecule** for explainability analysis. This will allow you to drill down and explore the reasons behind the model’s predictions for that molecule.
             
-### 📊 **Step 5: Visualize Explainability Results**
+### 🖥️ **Step 5: Visualize Explainability Results**
 
 With **ChemLearning**, you can visualize the **t-SNE analysis** to explore how molecules are distributed in latent space, helping you understand the **GNN’s performance**. 📈
 
 You can also view **molecular graph explanations**, showing the **importance of each atom** in the model’s prediction. 🔍 We support two explainability algorithms:  
 - **GNNExplainer** 🧠: Highlights which atoms contribute most to the prediction.  
-- **ShapleyValueSampling** ✅❌: Quantifies how much each atom feature influences the prediction, either positively (🔵) or negatively (🔴).
+- **ShapleyValueSampling** 📊: Quantifies how much each atom feature influences the prediction, either positively (🔵) or negatively (🔴).
 
 #### **Normalization Methods**:
 - **All** 🌍: Normalizes attributions across all atoms, useful for comparing different molecules.
@@ -136,7 +136,7 @@ if experiment is not None:
 
 
             if st.checkbox("Show t-SNE Analysis"):
-                tsne_data = predict_insilico(df).process(args)
+                tsne_data = predict_insilico(df, args).process()
                 loader_tsne = DataLoader(tsne_data)
                 y_pred, y_true, idx, embeddings = predict_network(args, model, loader_tsne, True)
                 embeddings = pd.concat([df, embeddings], axis=1)
@@ -183,7 +183,7 @@ if experiment is not None:
                 normalize_attributions = st.selectbox("Normalize the attributions based on", ['All', 'Molecule', 'Features'])
 
                 if explain_mols_csv.shape[0] > 0 and algorithm is not None and molecule is not None and scale_factor is not None:
-                    data = predict_insilico(explain_mols_csv).process(args)
+                    data = predict_insilico(explain_mols_csv, args).process()
                     args.algorithm = algorithm
                     args.explain_mol = molecule
                     args.scale_factor = scale_factor

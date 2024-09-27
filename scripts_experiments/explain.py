@@ -4,7 +4,7 @@ from torch_geometric.explain import Explainer, GNNExplainer, CaptumExplainer
 import streamlit as st
 from utils.other_utils import plot_molecule_importance
 from utils.other_utils import plot_denoised_mols
-from typing import List, Optional
+from typing import Optional
 from collections import defaultdict
 from rdkit import Chem
 from rdkit.Chem import AllChem
@@ -261,13 +261,12 @@ def get_masks(explanation, fa, la, edge_idx, opt):
     if opt.normalize == 'All':
         node_mask = node_mask/torch.max(node_mask.sum(dim=1))
 
-    atom_identity = 10
-    degree = 4
-    hyb = 4
+    atom_identity = 18
+    degree = 7
+    hyb = 7
     aromatic = 1
     ring = 1
     chiral = 2
-    conf = 2
 
     importances = []
     importances.append(node_mask[:, 0:atom_identity])
@@ -276,7 +275,6 @@ def get_masks(explanation, fa, la, edge_idx, opt):
     importances.append(node_mask[:, atom_identity+degree+hyb:atom_identity+degree+hyb+aromatic])
     importances.append(node_mask[:, atom_identity+degree+hyb+aromatic:atom_identity+degree+hyb+aromatic+ring])
     importances.append(node_mask[:, atom_identity+degree+hyb+aromatic+ring:atom_identity+degree+hyb+aromatic+ring+chiral])
-    importances.append(node_mask[:, atom_identity+degree+hyb+aromatic+ring+chiral:atom_identity+degree+hyb+aromatic+ring+chiral+conf])
 
     if opt.analysis == 'Atom Identity':
         importance = importances[0]

@@ -22,7 +22,8 @@ def predict_mols(opt, df:pd.DataFrame, model, model_params):
     results_insilico: DataFrame with the predictions of the target variable of the in-silico library.
     """
 
-    graphs_insilico = predict_insilico(df).process(opt)
+    graphs_insilico = predict_insilico(data = df, opt=opt)
+    graphs_insilico = graphs_insilico.process()
     loader = DataLoader(graphs_insilico)
 
     results_insilico = pd.DataFrame(columns=[f'real_{opt.target_variable_name}', f'predicted_{opt.target_variable_name}', opt.mol_id_col_insilico, 'model'])
@@ -127,7 +128,6 @@ def predict_mols(opt, df:pd.DataFrame, model, model_params):
         pre.update_layout(yaxis_title=f'Predicted {opt.target_variable_name} / {opt.target_variable_units}',
                                           width=800,)
 
-    
     pre.update_traces(hovertemplate='<br>ID: %{customdata[0]}<br>' + opt.target_variable_name +  ' Value: %{y}<extra></extra>',)
     st.plotly_chart(pre, use_container_width=True)
     st.write(results_insilico)

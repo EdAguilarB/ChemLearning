@@ -1,4 +1,3 @@
-import argparse
 import pandas as pd
 import streamlit as st
 import torch
@@ -6,37 +5,22 @@ from torch_geometric.data import  Data
 import numpy as np 
 from rdkit import Chem
 import os
-from tqdm import tqdm
 import sys
+from data.mol_graphs import molecular_graphs
 
 
 
 
 sys.path.append(os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
 
-class predict_insilico():
+class predict_insilico(molecular_graphs):
+    def __init__(self, data, opt):
+        super().__init__(data=data, opt=opt)
 
-    def __init__(self, data):
-        self.data = data
 
+    def process(self,):
 
-    @property
-    def _elem_list(self):
-        elements = [
-            'H', 
-            'B', 
-            'C', 
-            'N', 
-            'O', 
-            'F', 
-            'Si', 
-            'S', 
-            'Cl', 
-            'Br']
-        
-        return elements
-
-    def process(self, opt):
+        opt = self._opt
 
         all_graphs = []
 
@@ -50,7 +34,6 @@ class predict_insilico():
             all_smiles = []
 
             for molecule in opt.mol_cols:
-
 
                 std_smiles = Chem.MolToSmiles(Chem.MolFromSmiles(mols[molecule]), canonical=True)
 
@@ -78,11 +61,9 @@ class predict_insilico():
                             global_features += [mols[global_feat]]
 
                     else:
-
-
                         if global_feat in opt.ohe_graph_feat:
                             uni_vals = opt.ohe_pos_vals[global_feat]
-                            global_features += self._one_h_e('qWeRtYuIoP', uni_vals)
+                            global_features += self._one_h_e('qWeRtYuIoP', uni_vals, 'qWeRtYuIoP')
                         else:
                             global_features += [0]
 
@@ -127,94 +108,13 @@ class predict_insilico():
         return all_graphs
                         
 
-    def _get_node_feats(self, mol, graph_feat):
-
-        all_node_feats = []
-        CIPtuples = dict(Chem.FindMolChiralCenters(mol, includeUnassigned=False))
-
-        for atom in mol.GetAtoms():
-            node_feats = []
-            # Feature 1: Atomic number        
-            node_feats += self._one_h_e(atom.GetSymbol(), self._elem_list)
-            # Feature 2: Atom degree
-            node_feats += self._one_h_e(atom.GetDegree(), [1, 2, 3, 4])
-            # Feature 3: Hybridization
-            node_feats += self._one_h_e(atom.GetHybridization(), [0,2,3,4])
-            # Feature 4: Aromaticity
-            node_feats += [atom.GetIsAromatic()]
-            # Feature 5: In Ring
-            node_feats += [atom.IsInRing()]
-            # Feature 6: Chirality
-            node_feats += self._one_h_e(self._get_atom_chirality(CIPtuples, atom.GetIdx()), ['R', 'S'], 'No_Stereo_Center')
-
-            # Graph level features
-            node_feats += graph_feat
-
-            # Append node features to matrix
-            all_node_feats.append(node_feats)
-
-        all_node_feats = np.asarray(all_node_feats, dtype=np.float32)
-        return torch.tensor(all_node_feats, dtype=torch.float)
-    
-
-    def _get_labels(self, label):
-        label = np.asarray([label])
-        return torch.tensor(label, dtype=torch.float)
     
     
-    def _get_edge_features(self, mol):
 
-        all_edge_feats = []
-        edge_indices = []
-
-        for bond in mol.GetBonds():
-
-            #list to save the edge features
-            edge_feats = []
-
-            # Feature 1: Bond type (as double)
-            edge_feats += self._one_h_e(bond.GetBondType(), [Chem.rdchem.BondType.SINGLE, Chem.rdchem.BondType.DOUBLE, Chem.rdchem.BondType.TRIPLE, Chem.rdchem.BondType.AROMATIC])
-
-            #feature 2: double bond stereochemistry
-            edge_feats += self._one_h_e(bond.GetStereo(), [Chem.rdchem.BondStereo.STEREOZ, Chem.rdchem.BondStereo.STEREOE], Chem.rdchem.BondStereo.STEREONONE)
-
-            # Feature 3: Is in ring
-            edge_feats.append(bond.IsInRing())
-
-            # Append node features to matrix (twice, per direction)
-            all_edge_feats += [edge_feats, edge_feats]
-
-            # Append edge indices to list (twice, per direction)
-            i = bond.GetBeginAtomIdx()
-            j = bond.GetEndAtomIdx()
-            #create adjacency list
-            edge_indices += [[i, j], [j, i]]
-
-        all_edge_feats = np.asarray(all_edge_feats)
-        edge_indices = torch.tensor(edge_indices)
-        edge_indices = edge_indices.t().to(torch.long).view(2, -1)
-
-        return torch.tensor(all_edge_feats, dtype=torch.float), edge_indices
 
     
 
-    def _get_atom_chirality(self, CIP_dict, atom_idx):
-        try:
-            chirality = CIP_dict[atom_idx]
-        except KeyError:
-            chirality = 'No_Stereo_Center'
 
-        return chirality
-    
-    def _one_h_e(self, x, allowable_set, ok_set=None):
-
-        if x not in allowable_set:
-            if ok_set is not None and x == ok_set:
-                pass
-            else:
-                pass
-                #print(x)
-        return list(map(lambda s: x == s, allowable_set))
     
 
     

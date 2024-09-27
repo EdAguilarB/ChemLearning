@@ -4,7 +4,7 @@ import sys
 import torch
 import pandas as pd
 from torch_geometric.data import Dataset
-
+import streamlit as st
 
 
 
@@ -43,10 +43,18 @@ class reaction_graph(Dataset):
             'N', 
             'O', 
             'F', 
+            'Na',
+            'Mg',
+            'Al',
             'Si', 
+            'P',
             'S', 
             'Cl', 
-            'Br']
+            'K',
+            'Ca',
+            'Zn',
+            'Br',
+            'I']
         
         return elements
     
@@ -85,12 +93,12 @@ class reaction_graph(Dataset):
 
         return chirality
     
-    def _one_h_e(self, x, allowable_set, ok_set=None):
+    def _one_h_e(self, x, allowable_set, ok_set=None, feature_name=None):
 
         if x not in allowable_set:
             if ok_set is not None and x == ok_set:
                 pass
             else:
-                print(x)
+                st.warning(f'Value of {x} not found in the allowable set for {feature_name}. This could be because such value is no common.')
         return list(map(lambda s: x == s, allowable_set))
     

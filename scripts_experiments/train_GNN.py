@@ -9,8 +9,7 @@ import time
 import pandas as pd
 from copy import deepcopy
 from call_methods import make_network, create_loaders
-from utils.utils_model import train_network, eval_network, \
-    network_report, network_outer_report, generate_st_report
+from utils.utils_model import train_network, eval_network, generate_st_report
 
 
 sys.path.append(os.path.dirname(os.path.abspath(__file__)))
@@ -18,10 +17,7 @@ sys.path.append(os.path.dirname(os.path.abspath(__file__)))
 
 def train_GNNet(opt, file) -> None:
 
-    print('Initialising chiral diene ligands experiment using early stopping')
-
-    # Get the current working directory
-    current_dir = os.getcwd()
+    st.write(f'Initializing {opt.experiment_name} experiment...')
 
     # Set the device to cuda if available
     device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
@@ -228,8 +224,11 @@ def train_GNNet(opt, file) -> None:
 
         results_all_plot = results_all.loc[results_all['Inner_Fold'] == 'Mean']
 
+        title = 'Parity Plot Mean Predictions'
+
     else:
         results_all_plot = results_all
+        title = 'Parity Plot'
     
     st.write(results_all)
 
@@ -273,13 +272,16 @@ def train_GNNet(opt, file) -> None:
                                 name='Parity Line',
                                 line=dict(color='red', dash='dash')))
     
-    fig.update_layout(title='Parity Plot Mean Predictions',
+    fig.update_layout(title=title,
                     xaxis_title=f'Real {opt.target_variable_name} {opt.target_variable_units}',
                     yaxis_title=f'Predicted {opt.target_variable_name} {opt.target_variable_units}',
                     showlegend=True,
                     )
-    
-    st.plotly_chart(fig, use_container_width=True)
+
+    if opt.split_type == 'tvt' and opt.show_all:
+        pass
+    else:
+        st.plotly_chart(fig, use_container_width=True)
 
     
     return model_params, models, report_all, results_all
