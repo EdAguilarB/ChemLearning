@@ -131,7 +131,7 @@ class rhcaa_diene(reaction_graph):
                         y=y,
                         smiles = all_smiles,
                         mol_names = mol_name,
-                        idx = idx,
+                        idx = str(idx),
                         fold = fold
                         ) 
             
