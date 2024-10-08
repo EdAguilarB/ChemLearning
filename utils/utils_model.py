@@ -2,7 +2,6 @@ import torch
 import os
 import csv
 import re
-import pickle
 import numpy as np
 from datetime import date, datetime
 import streamlit as st
@@ -10,36 +9,58 @@ from copy import copy, deepcopy
 from sklearn.linear_model import LinearRegression
 from sklearn.ensemble import RandomForestRegressor, GradientBoostingRegressor
 from sklearn.model_selection import GridSearchCV
-from sklearn.metrics import r2_score, mean_absolute_error, mean_squared_error, \
-    accuracy_score, precision_score, recall_score, f1_score
+from sklearn.metrics import r2_score, mean_absolute_error,\
+    accuracy_score, precision_score, recall_score, f1_score, roc_auc_score, mean_absolute_percentage_error
 from math import sqrt
 from utils.plot_utils import *
 from sklearn.preprocessing import RobustScaler
+from icecream import ic
 
 
-def calculate_metrics(y_true:list, y_predicted: list, task:str):
-
+def calculate_metrics(
+    y_true: np.ndarray,
+    y_predicted: np.ndarray,
+    task: str,
+    num_classes: int,
+    y_score: np.ndarray = None
+) -> dict:
+    metrics = {}
     if task == 'regression':
-        r2 = r2_score(y_true=y_true, y_pred=y_predicted)
-        mae = mean_absolute_error(y_true=y_true, y_pred=y_predicted)
-        rmse = sqrt(mean_squared_error(y_true=y_true, y_pred=y_predicted))  
+        metrics['R2'] = r2_score(y_true=y_true, y_pred=y_predicted)
+        metrics['MAE'] = mean_absolute_error(y_true=y_true, y_pred=y_predicted)
+        metrics['RMSE'] = sqrt(mean_absolute_error(y_true=y_true, y_pred=y_predicted))  
         error = [(y_predicted[i]-y_true[i]) for i in range(len(y_true))]
-        prctg_error = [ abs(error[i] / y_true[i]) for i in range(len(error))]
-        mbe = np.mean(error)
-        mape = np.mean(prctg_error)
-        error_std = np.std(error)
-        metrics = [r2, mae, rmse, mbe, mape, error_std]
-        metrics_names = ['R2', 'MAE', 'RMSE', 'Mean Bias Error', 'Mean Absolute Percentage Error', 'Error Standard Deviation']
+        prctg_error = mean_absolute_percentage_error(y_true=y_true, y_pred=y_predicted) 
+        metrics['Mean Bias Error'] = np.mean(error)
+        metrics['Mean Absolute Percentage Error'] = np.mean(prctg_error)
+        metrics['Error Standard Deviation'] = np.std(error)
 
     elif task == 'classification':
-        accuracy = accuracy_score(y_true=y_true, y_pred=y_predicted)
-        precision = precision_score(y_true=y_true, y_pred=y_predicted)
-        recall = recall_score(y_true=y_true, y_pred=y_predicted)
-        f1 = f1_score(y_true=y_true, y_pred=y_predicted)
-        metrics = [accuracy, precision, recall, f1]
-        metrics_names = ['Accuracy', 'Precision', 'Recall', 'F1']
+        y_true = np.array(y_true).astype(int)
+        y_predicted = np.array(y_predicted).astype(int)
+        metrics['Accuracy'] = accuracy_score(y_true, y_predicted)
 
-    return np.array(metrics), metrics_names
+        average_method = 'binary' if num_classes == 2 else 'macro'
+        metrics['Precision'] = precision_score(y_true, y_predicted, average=average_method, zero_division=0)
+        metrics['Recall'] = recall_score(y_true, y_predicted, average=average_method, zero_division=0)
+        metrics['F1'] = f1_score(y_true, y_predicted, average=average_method, zero_division=0)
+
+        if y_score is not None:
+            if num_classes == 2:
+                # Binary classification
+                if y_score.ndim == 2:
+                    y_score = y_score[:, 0]  # Extract probabilities for positive class (class 1)
+                metrics['AUROC'] = roc_auc_score(y_true, y_score)
+            else:
+                # Multiclass classification
+                metrics['AUROC'] = roc_auc_score(y_true, y_score, multi_class='ovr')
+        else:
+            metrics['AUROC'] = None
+
+    else:
+        raise ValueError("Task must be 'regression' or 'classification'.")
+
+    return metrics
 
 ######################################
 ######################################
@@ -57,10 +78,18 @@ def train_network(model, train_loader, device):
     for batch in train_loader:
         batch = batch.to(device)
         model.optimizer.zero_grad()
+
         out = model(batch.x, 
                     batch.edge_index, 
                     batch.batch)
-        loss = torch.sqrt(model.loss(out, torch.unsqueeze(batch.y, dim=1)))
+        
+        if model.n_classes == 1:
+            batch.y = batch.y.float()
+            loss = torch.sqrt(model.loss(out, batch.y))
+        else:
+            loss = model.loss(out, batch.y)
+
+
         loss.backward()
         model.optimizer.step()
 
@@ -71,54 +100,78 @@ def train_network(model, train_loader, device):
 def eval_network(model, loader, device):
     model.eval()
     loss = 0
-    for batch in loader:
-        batch = batch.to(device)
-        out = model(batch.x,
-                    batch.edge_index,
-                    batch.batch)
-        loss += torch.sqrt(model.loss(out, torch.unsqueeze(batch.y, dim = 1) )).item() * batch.num_graphs
+    with torch.no_grad():
+        for batch in loader:
+            batch = batch.to(device)
+            out = model(batch.x,
+                        batch.edge_index,
+                        batch.batch)
+            loss += torch.sqrt(model.loss(out, batch.y )).item() * batch.num_graphs
     return loss / len(loader.dataset)
 
 
 def predict_network(opt, model, loader, return_emb = False):
-    model.to('cpu')
+    device = torch.device('cpu')
+    model.to(device)
     model.eval()
 
-    y_pred, y_true, idx, embeddings = [], [], [], []
+    y_pred, y_true, idx, y_score, embeddings = [], [], [], [], []
 
     for batch in loader:
-        batch = batch.to('cpu')
+
+        batch = batch.to(device)
+
         out, emb = model(x = batch.x, 
                          edge_index = batch.edge_index, 
                          batch_index = batch.batch, 
                          return_graph_embedding = True)
+        
+        out = out.cpu().detach()
 
-        y_pred.append(out.cpu().detach().numpy())
+        if model.problem_type == 'classification':
+            if out.dim() == 1 or out.size(1) == 1:
+                # Binary classification with one output node
+                probs = torch.sigmoid(out)
+                preds = (probs > 0.5).float()
+                y_score.append(probs.numpy().flatten())
+            
+            else:
+                # Multiclass classification or binary with two output nodes
+                probs = torch.softmax(out, dim=1)
+                preds = torch.argmax(probs, dim=1)
+                y_score.append(probs.numpy())
+            y_pred.append(preds.numpy().flatten())
+        else:
+            out = out.cpu().numpy().flatten()
+            y_pred.append(out)
+            y_score = None
+        
         try:
-            y_true.append(batch.y.cpu().detach().numpy())
+            y_true.append(batch.y.cpu().detach().numpy().flatten())
         except:
             y_true.append(batch.y)
-        idx.append(batch.idx.cpu().detach().numpy())
+        idx.append(batch.idx)
         embeddings.append(emb.detach().numpy())
 
-    y_pred = np.concatenate(y_pred, axis=0).ravel()
-    try:
-        y_true = np.concatenate(y_true, axis=0).ravel()
-    except:
-        pass
-    idx = np.concatenate(idx, axis=0).ravel()
-    embeddings = np.concatenate(embeddings, axis=0)
-
-    embeddings = pd.DataFrame(embeddings)
-
-    #embeddings[f'real_{opt.target_variable_name}'] = y_true
-    embeddings[f'predicted_{opt.target_variable_name}'] = y_pred
-    #embeddings['ID'] = idx
-
-    if return_emb == True:
-        return y_pred, y_true, idx, embeddings
+    y_pred = np.concatenate(y_pred, axis=0)
+    y_true = np.concatenate(y_true, axis=0) if None not in y_true else y_true
+    idx = np.concatenate(idx, axis=0)
+    if model.problem_type == 'classification':
+        y_score = np.concatenate(y_score, axis=0)
     else:
-        return y_pred, y_true, idx
+        y_score = None
+
+    if return_emb == False:
+        return y_pred, y_true, idx, y_score
+    
+    if return_emb == True:
+        embeddings = np.concatenate(embeddings, axis=0)
+        embeddings = pd.DataFrame(embeddings)
+        embeddings['mol_id'] = idx
+        embeddings[f'predicted_{opt.target_variable_name}'] = y_pred
+        
+        return y_pred, y_true, idx, y_score, embeddings
+
 
 
 def generate_st_report(opt, 
@@ -156,40 +209,40 @@ def generate_st_report(opt,
     model.load_state_dict(model_params)
 
     # Predict and get embeddings for training set
-    y_pred_train, y_true_train, idx_train  = predict_network(opt=opt, model=model, loader= train_loader, return_emb=False)
+    y_pred_train, y_true_train, idx_train, y_score  = predict_network(opt=opt, model=model, loader= train_loader, return_emb=False)
     train_results = pd.DataFrame({f'real_{opt.target_variable_name}': y_true_train, f'predicted_{opt.target_variable_name}': y_pred_train, opt.mol_id_col: idx_train})
     train_results['set'] = 'Training'
-    metrics_train, metrics_names = calculate_metrics(y_true_train, y_pred_train, task=opt.problem_type)
+    metrics_train = calculate_metrics(y_true_train, y_pred_train, task=model.problem_type, num_classes=model.n_classes)
 
     report.append("Training set\n")
     report.append("Set size = {}\n".format(N_train))
-    report.extend([f"{Metric} = {Value}\n" for Metric, Value in zip(metrics_names, metrics_train)])
+    report.extend([f"{Metric} = {Value}\n" for Metric, Value in metrics_train.items()])
 
     # Predict and get embeddings for validation set
-    y_pred_val, y_true_val, idx_val = predict_network(opt=opt, model=model, loader= val_loader, return_emb=False)
+    y_pred_val, y_true_val, idx_val, y_score = predict_network(opt=opt, model=model, loader= val_loader, return_emb=False)
     val_results = pd.DataFrame({f'real_{opt.target_variable_name}': y_true_val, f'predicted_{opt.target_variable_name}': y_pred_val, opt.mol_id_col: idx_val})
     val_results['set'] = 'Validation'
-    metrics_val, metrics_names = calculate_metrics(y_true_val, y_pred_val, task=opt.problem_type)
+    metrics_val = calculate_metrics(y_true_val, y_pred_val, task=model.problem_type, num_classes=model.n_classes)
 
     report.append("Validation set\n")
     report.append("Set size = {}\n".format(N_val))
-    report.extend([f"{Metric} = {Value}\n" for Metric, Value in zip(metrics_names, metrics_val)])
+    report.extend([f"{Metric} = {Value}\n" for Metric, Value in metrics_val.items()])
 
     # Predict and get embeddings for test set
-    y_pred_test, y_true_test, idx_test = predict_network(opt=opt, model=model, loader= test_loader, return_emb=False)
+    y_pred_test, y_true_test, idx_test, y_score = predict_network(opt=opt, model=model, loader= test_loader, return_emb=False)
     test_results = pd.DataFrame({f'real_{opt.target_variable_name}': y_true_test, f'predicted_{opt.target_variable_name}': y_pred_test, opt.mol_id_col: idx_test})
     test_results['set'] = 'Test'
-    metrics_test, metrics_names = calculate_metrics(y_true_test, y_pred_test, task=opt.problem_type)
+    metrics_test = calculate_metrics(y_true_test, y_pred_test, task=model.problem_type, num_classes=model.n_classes)
 
     report.append("Test set\n")
     report.append("Set size = {}\n".format(N_test))
-    report.extend([f"{Metric} = {Value}\n" for Metric, Value in zip(metrics_names, metrics_test)])
+    report.extend([f"{Metric} = {Value}\n" for Metric, Value in metrics_test.items()])
 
     report.append("\n\n")
     report.append("---------------------------------------------------------\n")
     report.append("\n\n")
 
-    if opt.problem_type == 'regression' and opt.show_all:
+    if model.problem_type == 'regression' and opt.show_all:
         fig = go.Figure()
 
         fig.add_trace(go.Scatter(x=y_true_train, 
