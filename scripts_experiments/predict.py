@@ -30,7 +30,7 @@ def predict_mols(opt, df:pd.DataFrame, model, model_params):
 
     for i in range(len(model_params)):
         model.load_state_dict(model_params[i])
-        y_pred, y_true, idx, embs = predict_network(opt, model, loader, True)
+        y_pred, y_true, idx, _ = predict_network(opt, model, loader, False)
         results_model = pd.DataFrame({f'real_{opt.target_variable_name}': y_true, f'predicted_{opt.target_variable_name}': y_pred,  opt.mol_id_col_insilico: idx, 'model': i})
         results_insilico = pd.concat([results_insilico, results_model], axis=0)
 
@@ -58,7 +58,7 @@ def predict_mols(opt, df:pd.DataFrame, model, model_params):
         
         results_insilico = pd.concat([results_insilico, mean_preds, meadian_preds], axis=0)
 
-    if None not in y_true:
+    if None not in y_true and opt.problem_type == 'regression':
 
         if opt.split_type == 'tvt':
 
@@ -93,7 +93,7 @@ def predict_mols(opt, df:pd.DataFrame, model, model_params):
                             yaxis_title=f'Predicted {opt.target_variable_name} / {opt.target_variable_units}',
                             width=800,)
             
-    else:
+    elif opt.problem_type == 'regression':
 
         results_insilico = results_insilico.dropna(axis=1)
 
@@ -128,8 +128,11 @@ def predict_mols(opt, df:pd.DataFrame, model, model_params):
         pre.update_layout(yaxis_title=f'Predicted {opt.target_variable_name} / {opt.target_variable_units}',
                                           width=800,)
 
-    pre.update_traces(hovertemplate='<br>ID: %{customdata[0]}<br>' + opt.target_variable_name +  ' Value: %{y}<extra></extra>',)
-    st.plotly_chart(pre, use_container_width=True)
+    
+    if opt.problem_type == 'regression':
+        pre.update_traces(hovertemplate='<br>ID: %{customdata[0]}<br>' + opt.target_variable_name +  ' Value: %{y}<extra></extra>',)
+        st.plotly_chart(pre, use_container_width=True)
+        
     st.write(results_insilico)
 
     return results_insilico

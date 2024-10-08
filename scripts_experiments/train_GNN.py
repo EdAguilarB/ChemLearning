@@ -236,52 +236,54 @@ def train_GNNet(opt, file) -> None:
     results_val = results_all_plot.loc[results_all_plot['set'] == 'Validation']
     results_test = results_all_plot.loc[results_all_plot['set'] == 'Test']
 
-    fig = go.Figure()
+    if opt.problem_type == 'regression':
+
+        fig = go.Figure()
 
 
-    fig.add_trace(go.Scatter(x=results_train[f'real_{opt.target_variable_name}'],
-                                 y=results_train[f'predicted_{opt.target_variable_name}'],
-                                 mode='markers',
-                                 name='Training Set',
-                                 marker=dict(color='blue'),
-                                 text=results_train['index'],
-                                 hoverinfo='text'
-                                 ))
-    
-    fig.add_trace(go.Scatter(x=results_val[f'real_{opt.target_variable_name}'],
-                                    y=results_val[f'predicted_{opt.target_variable_name}'],
+        fig.add_trace(go.Scatter(x=results_train[f'real_{opt.target_variable_name}'],
+                                    y=results_train[f'predicted_{opt.target_variable_name}'],
                                     mode='markers',
-                                    name='Validation Set',
-                                    marker=dict(color='orange'),
-                                    text=results_val['index'],
+                                    name='Training Set',
+                                    marker=dict(color='blue'),
+                                    text=results_train[opt.mol_id_col],
                                     hoverinfo='text'
                                     ))
-    
-    fig.add_trace(go.Scatter(x=results_test[f'real_{opt.target_variable_name}'],
-                                    y=results_test[f'predicted_{opt.target_variable_name}'],
-                                    mode='markers',
-                                    name='Test Set',
-                                    marker=dict(color='green'),
-                                    text=results_test['index'],
-                                    hoverinfo='text'
-                                    ))
+        
+        fig.add_trace(go.Scatter(x=results_val[f'real_{opt.target_variable_name}'],
+                                        y=results_val[f'predicted_{opt.target_variable_name}'],
+                                        mode='markers',
+                                        name='Validation Set',
+                                        marker=dict(color='orange'),
+                                        text=results_val[opt.mol_id_col],
+                                        hoverinfo='text'
+                                        ))
+        
+        fig.add_trace(go.Scatter(x=results_test[f'real_{opt.target_variable_name}'],
+                                        y=results_test[f'predicted_{opt.target_variable_name}'],
+                                        mode='markers',
+                                        name='Test Set',
+                                        marker=dict(color='green'),
+                                        text=results_test[opt.mol_id_col],
+                                        hoverinfo='text'
+                                        ))
 
-    fig.add_trace(go.Scatter(x=[min(results_train[f'real_{opt.target_variable_name}']), max(results_train[f'real_{opt.target_variable_name}'])],
-                                y=[min(results_train[f'real_{opt.target_variable_name}']), max(results_train[f'real_{opt.target_variable_name}'])],
-                                mode='lines',
-                                name='Parity Line',
-                                line=dict(color='red', dash='dash')))
-    
-    fig.update_layout(title=title,
-                    xaxis_title=f'Real {opt.target_variable_name} {opt.target_variable_units}',
-                    yaxis_title=f'Predicted {opt.target_variable_name} {opt.target_variable_units}',
-                    showlegend=True,
-                    )
+        fig.add_trace(go.Scatter(x=[min(results_train[f'real_{opt.target_variable_name}']), max(results_train[f'real_{opt.target_variable_name}'])],
+                                    y=[min(results_train[f'real_{opt.target_variable_name}']), max(results_train[f'real_{opt.target_variable_name}'])],
+                                    mode='lines',
+                                    name='Parity Line',
+                                    line=dict(color='red', dash='dash')))
+        
+        fig.update_layout(title=title,
+                        xaxis_title=f'Real {opt.target_variable_name} {opt.target_variable_units}',
+                        yaxis_title=f'Predicted {opt.target_variable_name} {opt.target_variable_units}',
+                        showlegend=True,
+                        )
 
-    if opt.split_type == 'tvt' and opt.show_all:
-        pass
-    else:
-        st.plotly_chart(fig, use_container_width=True)
+        if opt.split_type == 'tvt' and opt.show_all:
+            pass
+        else:
+            st.plotly_chart(fig, use_container_width=True)
 
     
     return model_params, models, report_all, results_all

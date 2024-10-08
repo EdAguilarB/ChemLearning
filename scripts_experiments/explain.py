@@ -114,7 +114,10 @@ def plot_molecule_importance(opt, mol_graph, explanation):
 
     node_mask = np.array(node_mask)
 
-    node_mask = np.where(node_mask < opt.contrast_threshold, np.power(node_mask, 2), np.where(node_mask >0, np.sqrt(node_mask), -np.sqrt(-node_mask)))
+    if opt.type_contrast == 'Continuous':
+        node_mask = np.where(node_mask < opt.contrast_threshold, np.power(node_mask, 2), np.where(node_mask >0, np.sqrt(node_mask), -np.sqrt(-node_mask)))
+    else:
+        node_mask = np.where(node_mask < opt.contrast_threshold, 0, np.where(node_mask >0, 1, -1))
 
     if opt.algorithm == 'ShapleyValueSampling':
         atoms = trace_atoms(atom_symbol = atom_symbol, coords=coords,sizes=sizes_plot, 

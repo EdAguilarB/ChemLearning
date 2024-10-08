@@ -13,15 +13,19 @@ st.set_page_config(page_title="Predict Property", page_icon="🧪", layout="wide
 st.markdown("""
 ## 📊 Predict Molecular Properties with Your Trained GNN Model
 
-Welcome to the **prediction** section! Here, you can upload a CSV file containing molecules for which you'd like to **predict properties** using the model you’ve already trained. 
+Welcome to the **prediction** section! Here, you can upload a CSV file containing molecules for which you'd like to **predict properties** using the model you’ve already trained.
 
 ### 🧠 **Important: You Must Train a Model First!**
-Before you use this feature, make sure you’ve already trained a GNN model. If not, head over to the **'Train GNN'** page to upload your dataset and train your model.
+
+Before you use this feature, make sure you’ve already trained a GNN model. If you haven’t, please visit the **'Train GNN'** page to upload your dataset and train your model.
 
 ### 📝 **Prepare Your CSV for Prediction**
-To make accurate predictions, the **CSV file of your in-silico library** should follow the same structure as the dataset you used for training:
-- **Column names** in your new CSV must match exactly with those in your training dataset. This includes the names of the SMILES columns and any other input features.
-- Ensure that your file contains the same number of **molecule columns** as the training file.
+
+To make accurate predictions, your **CSV file** (in-silico library) must follow the same structure as the dataset you used for training. Please ensure the following:
+
+- The **column names** in your new CSV **must match exactly** with the names from the training dataset, including the SMILES columns and any additional properties you may have included (e.g., molecular features or encoded values).
+- Your CSV should contain the same number of **molecule columns** as in the original training dataset.
+- If you included additional molecular features (e.g., stereochemistry, molecular descriptors) in the training file, those should also be included in your new CSV file and have the same column names.
 
 #### Example Structure:
 | SMILES_1         | SMILES_2        | ...             |
@@ -29,7 +33,11 @@ To make accurate predictions, the **CSV file of your in-silico library** should 
 | CCO              | CCC             | ...             |
 | CCN              | C1=CC=CC=C1     | ...             |
 
+This ensures that the model can properly interpret the new dataset in the same way it did during training. Any discrepancies in column names or structure could lead to errors or inaccurate predictions.
+
 Once your CSV is ready, simply upload it here, and the app will predict the properties of your molecules based on the trained model! 🚀
+            
+To start, upload your **experiment zip file** generated from your training experiments, and then upload your **in-silico library** for prediction.
 """)
 
 
@@ -85,13 +93,13 @@ if experiment is not None:
                 if graph_feat not in df.columns:
                     st.error(f"Column {graph_feat} not found in the in-silico library.")
                     st.stop()
-            for feat_ohe in data["ohe_graph_feat"]:
-                print(feat_ohe)
-                uni_vals = df[feat_ohe].unique()
-                for val in uni_vals:
-                    if val not in data["ohe_pos_vals"][feat_ohe]:
-                        st.error(f"Value {val} not found in the one-hot encoded values for {feat_ohe}.")
-                        st.error("This means that this value has not been seen during training, and may cause mis-predictions.")
+            if data["ohe_graph_feat"]:
+                for feat_ohe in data["ohe_graph_feat"]:
+                    uni_vals = df[feat_ohe].unique()
+                    for val in uni_vals:
+                        if val not in data["ohe_pos_vals"][feat_ohe]:
+                            st.error(f"Value {val} not found in the one-hot encoded values for {feat_ohe}.")
+                            st.error("This means that this value has not been seen during training, and may cause mis-predictions.")
 
             st.title("In-Silico Library Prediction")
             args = argparse.Namespace(**data)

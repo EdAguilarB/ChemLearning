@@ -31,40 +31,45 @@ opt = BaseOptions().parse()
 
 
 
-# Set the section title
-st.markdown("## 👋 Welcome to the GNN Training Section!")
 
 # Instructions with visuals and formatting
 st.markdown("""
+## 👋 Welcome to the GNN Training Section!
+
 ### 🧪 Train Your GNN Model on Chemical Data
-In this section, you can **train a Graph Neural Network (GNN)** model using your own chemical dataset! Simply upload a CSV file containing the SMILES representations of molecules and the target property you want to predict. The model will learn from the molecular structures to predict this target property.
+
+In this section, you can **train a Graph Neural Network (GNN)** model using your own chemical dataset! Simply upload a CSV file containing the SMILES representations of molecules and the target property you want to predict. The model will learn from these molecular structures to predict the property of interest.
 
 ### 📁 Upload Your Dataset
-Make sure your dataset follows these guidelines:
-- **SMILES columns**: Each molecule's SMILES representation should be in a separate column.
-- **Target property**: The property you want to predict should be in a separate column as well.
 
-#### Example:
+Please ensure your dataset follows these guidelines:
+
+- **SMILES columns**: Each molecule's SMILES representation should be in a separate column.
+- **Target property**: The property you want the model to predict (e.g., solubility, toxicity, etc.) should be in its own column.
+
+#### Example Dataset Structure:
 | SMILES_1         | SMILES_2        | Target_Property |
 |------------------|-----------------|-----------------|
 | CCO              | CCC             | 12.5            |
 | CCN              | C1=CC=CC=C1     | 8.4             |
 | ...              | ...             | ...             |
 
-### 💻 Predict from an In-Silico Library
-Once your model is trained, you can also use it to predict properties for a new set of molecules in an **in-silico library**. Simply upload the new dataset for prediction.
+### 🔧 Fine-Tuning Hyperparameters
 
-### 🫡 Final Step: Complete All Fields Before Training
-Before you hit the **'Apply'** button, double-check that all required fields are filled in correctly. This ensures smooth training and avoids errors.
+Fine-tuning hyperparameters (such as learning rate, batch size, and number of epochs) can improve model performance. However, it's important to note that the **key to successful machine learning** in chemistry often relies more on how the molecular information is represented rather than fine-tuning hyperparameters. In this case, we use **molecular graphs**, which effectively capture the connectivity and structure of molecules. This means that the way we model the molecules already provides a strong foundation for accurate predictions.
 
-### 📥 Download Your Results
-After the training is complete:
-- You will be able to **download a detailed report** of the training process.
-- The **trained model files** will be available for download. You’ll need these files if you plan to use the **Predict** or **Explain** tabs later.
+### 🧑‍🔬 Important: Download Your Files
 
----
+After the training process is complete, the app will generate several output files, including the predictions, performance metrics, and model configurations. These files are crucial if you plan to:
 
-Once you're ready, upload your data and click **'Apply'** to start training your GNN model!
+- **Predict properties of new molecules** from an **in silico library**.
+- **Understand and explain** your GNN’s predictions using explainability methods.
+
+Make sure to download these files at the end of the experiment! They contain the necessary information for future predictions, and you will need them if you intend to perform any explainability analyses on the model's behavior.
+
+### 🚀 Begin Training
+
+Once you've uploaded your dataset, configured the training settings, and are ready to go, start the training process. The app will guide you through setting the hyperparameters, and the model will begin learning from your data.
 """)
 
 
@@ -82,30 +87,69 @@ with st.expander('Step 1: Select CSV file with SMILES and target variable to mod
         smiles_cols = st.multiselect("Select SMILES columns", options=df.columns.tolist())
         st.write(f"Selected SMILES columns: {', '.join(smiles_cols)}" if smiles_cols else "No SMILES columns selected")
 
-        graph_level_features = st.multiselect("Select graph-level features", options=df.columns.tolist())
-
-        st.write("Select the molecules which have the following features:")
-
         graph_feats = {}
 
-        for feature in graph_level_features:
-            graph_feats[feature] = st.multiselect(feature, options=smiles_cols)
+        if st.checkbox("Include Graph-level features"):
 
-        one_hot_encode_feats = st.multiselect("Select features to one-hot encode", options=graph_level_features)
-        ohe_pos_vals = {}
+            graph_level_features = st.multiselect("Select graph-level features", options=df.columns.tolist())
 
-        for feature in one_hot_encode_feats:
-            uni_vals = df[feature].unique().tolist()
-            ohe_pos_vals[feature] = uni_vals
+            st.write("Select the molecules which have the following features:")
+
+
+            for feature in graph_level_features:
+                graph_feats[feature] = st.multiselect(feature, options=smiles_cols)
+
+            one_hot_encode_feats = st.multiselect("Select features to one-hot encode", options=graph_level_features)
+            ohe_pos_vals = {}
+
+            for feature in one_hot_encode_feats:
+                uni_vals = df[feature].unique().tolist()
+                ohe_pos_vals[feature] = uni_vals
+                
+                st.write(f"Features to one-hot encode: {', '.join(one_hot_encode_feats)}")
             
-            st.write(f"Features to one-hot encode: {', '.join(one_hot_encode_feats)}")
+        else:
+            st.write("No graph-level features selected")
+            graph_level_features = None
+            one_hot_encode_feats = None
+            ohe_pos_vals = None
 
-        identifier_col = st.selectbox("Select column with the ID of each molecule", options=df.columns.tolist())
-        target_col = st.selectbox("Select target column", options=df.columns.tolist())
+
+        identifier_col = st.selectbox("Select column with the ID of each molecule", options=df.columns.tolist(), index=None)
+        
+        target_col = st.selectbox("Select target column", options=df.columns.tolist(), index=None)
+
+        if target_col and pd.api.types.is_numeric_dtype(df[target_col]):
+            st.write(f"Target variable '{target_col}' is numeric")
+            unique_vals_target = df[target_col].nunique()
+            if unique_vals_target < 20:
+                st.warning("This looks like a classification problem is to be modeled.")
+                suggested_problem_type = "Classification"
+            else:
+                st.warning("This looks like a regression problem is to be modeled.")
+                suggested_problem_type = "Regression"
+        elif target_col is None:
+            st.error("Please select a target variable.")
+        else:
+            st.error(f"Target variable '{target_col}' is not numeric. Please select a numeric column.")
+            suggested_problem_type = None
+
+        if target_col:
+            problems = ["Classification", "Regression"]
+            problem_type = st.selectbox("Select the problem type", problems, index=problems.index(suggested_problem_type) if suggested_problem_type in problems else None)
+
+            if problem_type == "Classification":
+                n_classes = df[target_col].nunique()
+                st.write(f"Number of classes: {n_classes}")
+            else:
+                n_classes = 1
+
         target_name = st.text_input("Target variable name", value=target_col)
         target_units = st.text_input("Target variable units", value="kJ/mol")
 
-        if target_col:
+
+
+        if target_col and problem_type == "Regression":
             st.header(f"Distribution of {target_name}")
 
             min_val_target = df[target_col].min()
@@ -189,6 +233,9 @@ if csv_file and log_name and smiles_cols:
         opt.ohe_graph_feat = one_hot_encode_feats
         opt.ohe_pos_vals = ohe_pos_vals
         opt.graph_features = graph_feats
+
+        opt.problem_type = problem_type.lower()
+        opt.n_classes = n_classes
 
         if split_type == "Train-Validation-Test Split":
             opt.val_size = val_set_ratio
