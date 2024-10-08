@@ -42,10 +42,10 @@ class GCN(BaseNetwork):
             graph_embedding = reduced_dim
 
         #Final readout layer
-        self.readout.append(nn.Linear(graph_embedding, self._n_classes))
+        self.readout.append(nn.Linear(graph_embedding, self.n_classes))
         
         
-        self._make_loss(opt.problem_type)
+        self._make_loss()
         self._make_optimizer(opt.optimizer, opt.lr)
         self._make_scheduler(scheduler=opt.scheduler, step_size = opt.step_size, gamma = opt.gamma, min_lr=opt.min_lr)
 
@@ -67,6 +67,9 @@ class GCN(BaseNetwork):
         
         for i in range(self.readout_layers):
             x = self.readout[i](x)
+
+        if self.n_classes == 1:
+            x = x.float().squeeze()
 
         if not return_graph_embedding:
             return x

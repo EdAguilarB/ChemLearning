@@ -12,11 +12,12 @@ class BaseNetwork(nn.Module):
         self._name = "BaseNetwork"
         self._opt = opt
         self.n_node_features = n_node_features
-        self._n_classes = opt.n_classes
+        self.n_classes = opt.n_classes
         self.n_convolutions = opt.n_convolutions
         self.embedding_dim = opt.embedding_dim  
         self.readout_layers = opt.readout_layers
         self._seed_everything(opt.global_seed)
+        self.problem_type = opt.problem_type
 
     def forward(self):
         raise NotImplementedError
@@ -25,13 +26,13 @@ class BaseNetwork(nn.Module):
     def name(self):
         return self._name
     
-    def _make_loss(self, problem_type, mae=None):
-        if problem_type == "classification":
+    def _make_loss(self,):
+        if self.problem_type == "classification":
             self.loss = nn.CrossEntropyLoss()
-        elif problem_type == "regression" and mae is None:
+        elif self.problem_type == "regression":
             self.loss = nn.MSELoss()
         else:
-            raise ValueError(f"Problem type {problem_type} not supported")
+            raise ValueError(f"Problem type {self.problem_type} not supported")
         
     def _make_optimizer(self, optimizer, lr):
         if optimizer == "Adam":
