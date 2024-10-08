@@ -197,7 +197,6 @@ if experiment is not None:
                     args.type_contrast = type_contrast
                     args.bond_width = bond_width
                     explain_mols(opt=args, model=model, mol_graphs=data)
-                    #denoise_graphs(opt=args, model=model, mol_graphs=data)
 
 
 

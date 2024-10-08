@@ -140,6 +140,8 @@ def plot_molecule_importance(opt, mol_graph, explanation):
 
 def denoise_graphs(opt, model, mol_graphs) -> None:
 
+    mode = opt.problem_type if opt.problem_type == 'regression' else 'multiclass_classification'
+
     explainer = Explainer(
         model=model,
         algorithm=GNNExplainer(),
@@ -147,7 +149,7 @@ def denoise_graphs(opt, model, mol_graphs) -> None:
         node_mask_type='attributes',
         edge_mask_type='object',
         model_config=dict(
-            mode='regression',
+            mode=mode,
             task_level='graph',
             return_type='raw',
         ),
