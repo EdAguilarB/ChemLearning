@@ -13,69 +13,6 @@ class BaseOptions:
         ########Options to run experiments#########
         ###########################################
 
-        self.parser.add_argument(
-            '--train_GNN', 
-            type=self.str2bool,
-            nargs='?', 
-            const=True, 
-            default=True, 
-            help='Whether to train the GNN or not'
-            )
-        
-        self.parser.add_argument(
-            '--train_tml', 
-            type=self.str2bool, 
-            nargs='?', 
-            const=True, 
-            default=True, 
-            help='Whether to train the TML or not'
-            )
-        
-        self.parser.add_argument(
-            '--compare_models', 
-            type=self.str2bool, 
-            nargs='?', 
-            const=True, 
-            default=True, 
-            help='Whether to compare GNN and TML or not'
-            )
-        
-        self.parser.add_argument(
-            '--predict_unseen', 
-            type=self.str2bool, 
-            nargs='?', 
-            const=True, 
-            default=True, 
-            help='Whether to predict the unseen data or not'
-            )
-        
-
-        self.parser.add_argument(
-            '--shapley_analysis', 
-            type=self.str2bool, 
-            nargs='?', 
-            const=True, 
-            default=True, 
-            help='Whether to explain the GNN or not'
-            )
-
-        self.parser.add_argument(
-            '--denoise_graph', 
-            type=self.str2bool, 
-            nargs='?', 
-            const=True, 
-            default=True, 
-            help='Whether to explain the GNN or not'
-            )
-
-        self.parser.add_argument(
-            '--GNNExplainer', 
-            type=self.str2bool, 
-            nargs='?', 
-            const=True, 
-            default=True, 
-            help='Whether to explain the GNN or not'
-            )
         
         self.parser.add_argument(
             '--experiment_name',
@@ -103,41 +40,17 @@ class BaseOptions:
             help='name of the csv file',
             )
         
-        self.parser.add_argument(
-            '--filename_final_test',
-            type=str,
-            default='final_test.csv',
-            help='name of the csv file for the final test',
-            )
-        
-        self.parser.add_argument(
-            '--root_final_test', 
-            type=str, 
-            default='data/datasets/rhcaa_final_test',
-            help='path to the folder containing the csv files',
-            )
-        
+
         ###########################################
         ###Options to predict unseen datapoints####
         ###########################################
 
-        self.parser.add_argument(
-            '--root_predict', 
-            type=str, 
-            default='data/datasets/rhcaa_final_test',
-            help='path to the folder containing the csv files',
-            )
 
         
         ###########################################
         ##########Options to log results###########
         ###########################################
-        self.parser.add_argument(
-            '--log_dir_results',
-            type=str,
-            default=os.path.join(os.getcwd(), 'results/'),
-            help='path to the folder where the results will be saved',
-            )
+
         
         ###########################################
         #########Smiles columns in dataset#########
