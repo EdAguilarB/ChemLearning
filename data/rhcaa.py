@@ -20,9 +20,8 @@ sys.path.append(os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
 class rhcaa_diene(reaction_graph):
 
     def __init__(self, opt:argparse.Namespace, filename: str, molcols: list, root: str = None, file=None, include_fold = True) -> None:
-
         self._include_fold = include_fold
-
+        self.filename = filename
         self.mol_identifier_col = opt.mol_id_col
 
         if self._include_fold:
@@ -32,6 +31,8 @@ class rhcaa_diene(reaction_graph):
                 self.split_data(root, filename, file, opt)
             
             root = os.path.join(root, opt.experiment_name, f'data')
+        
+            self.filename = filename[:-4] + f'_{opt.split_type}_{opt.split_method[:2]}' + filename[-4:]
 
         super().__init__(opt = opt, filename = self.filename, mol_cols = molcols, root=root, file=file)
 
