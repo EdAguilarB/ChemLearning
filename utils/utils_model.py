@@ -154,7 +154,8 @@ def predict_network(opt, model, loader, return_emb = False):
         embeddings.append(emb.detach().numpy())
 
     y_pred = np.concatenate(y_pred, axis=0)
-    y_true = np.concatenate(y_true, axis=0) if None not in y_true else y_true
+    if not any(elem is None for elem in y_true):
+        y_true = np.concatenate(y_true, axis=0)
     idx = np.concatenate(idx, axis=0)
     if model.problem_type == 'classification':
         y_score = np.concatenate(y_score, axis=0)
