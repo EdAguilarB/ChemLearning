@@ -5,6 +5,7 @@ import json
 import zipfile
 import io
 import torch
+import json
 
 # Assuming BaseOptions and the training function are already defined as per your original code.
 import plotly.figure_factory as ff
@@ -71,6 +72,24 @@ Make sure to download these files at the end of the experiment! They contain the
 
 Once you've uploaded your dataset, configured the training settings, and are ready to go, start the training process. The app will guide you through setting the hyperparameters, and the model will begin learning from your data.
 """)
+
+best_hyperparams = st.file_uploader("Upload the best hyperparameters file if you did hyperparamter optimization", type="json")
+
+if best_hyperparams:
+    data = json.load(best_hyperparams)
+
+    opt.embedding_dim = data['embedding_dim']
+    opt.n_convolutions = data['n_convolutions']
+    opt.readout_layers = data['readout_layers']
+
+    opt.lr = data['lr']
+    opt.early_stopping = data['early_stopping_patience']
+    opt.batch_size = data['batch_size']
+
+    opt.epochs = data['epochs']
+
+    st.success("Loaded best hyperparameters file.")
+    st.warning("Please do not change the hyperparameters as now they have been overwritten to the ones found in the hyperparameter optimization process.")
 
 
 # Step 1: Select CSV file
@@ -185,16 +204,35 @@ with st.expander("Step 2: Set Data Splitting Options", expanded=False):
     split_method = st.selectbox("Select Split Method", ["Stratified Split", "Random Split"])
 
     if split_method == "Stratified Split":
-            # hacer lo de numero de tractos en que dividir la variable continua par el stratified
+            #TODO hacer lo de numero de tractos en que dividir la variable continua par el stratified
         pass
 
-# Step 5: Training Options
-with st.expander("Step 3: Set Training Options", expanded=False):
+
+with st.expander("Step 3: Set Model Architecture Hyperparameters", expanded=False):
     embedding_dim = st.number_input("Embedding size", min_value=1, max_value=1024, value=opt.embedding_dim)
     n_convolutions = st.number_input("Number of convolutions", min_value=1, max_value=10, value=opt.n_convolutions)
     readout_layers = st.number_input("Number of readout layers", min_value=1, max_value=10, value=opt.readout_layers)
+
+
+# Step 5: Training Options
+with st.expander("Step 4: Set Training Options", expanded=False):
+
+    input_value = st.text_input("Learning rate", value=str(opt.lr))
+    try:
+        # Convert the input string to a float
+        learning_rate = float(input_value)
+        if learning_rate < 0.0001 or learning_rate > 1.0:
+            st.error("Please enter a value between 0.0001 and 1.0")
+        else:
+            # Proceed with using the learning rate
+            st.success(f"Learning rate set to: {learning_rate}")
+    except ValueError:
+        # Handle the case where the conversion fails
+        st.error("Please enter a valid floating-point number")
+
     epochs = st.number_input("Number of epochs", min_value=1, max_value=1000, value=opt.epochs)
     batch_size = st.number_input("Training batch size", min_value=1, max_value=512, value=opt.batch_size)
+    early_stopping = st.number_input("Early stopping patience", min_value=1, max_value=10, value=opt.early_stopping)
 
 
 
@@ -219,8 +257,11 @@ if csv_file and log_name and smiles_cols:
         opt.embedding_dim = embedding_dim
         opt.n_convolutions = n_convolutions
         opt.readout_layers = readout_layers
+
+        opt.lr = learning_rate
         opt.epochs = epochs
         opt.batch_size = batch_size
+        opt.early_stopping = early_stopping
 
         opt.split_type = terms_dict[split_type]
         opt.split_method = terms_dict[split_method]
