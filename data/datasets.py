@@ -14,7 +14,6 @@ class reaction_graph(Dataset):
 
 
     def __init__(self, opt: argparse.Namespace, filename: str, mol_cols: list, root: str, file) -> None:
-
         self.filename = filename
         self.mol_cols = mol_cols
         self._name = "BaseDataset"
@@ -22,6 +21,7 @@ class reaction_graph(Dataset):
         self._root = root
         
         super().__init__(root = self._root)
+        self.set = pd.read_csv(self.raw_paths[0])['fold']
         
 
     @property
@@ -59,7 +59,7 @@ class reaction_graph(Dataset):
         return elements
     
     def download(self):
-        raise NotImplementedError
+        print(self.raw_paths)
 
     def process(self):
         raise NotImplementedError

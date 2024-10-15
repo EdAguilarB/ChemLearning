@@ -12,12 +12,10 @@ class GCN(BaseNetwork):
         super().__init__(opt=opt, n_node_features=n_node_features)
 
         self._name = "GCN"
-        self.improved = opt.improved
 
         #First convolution and activation function
         self.conv1 = GCNConv(self.n_node_features,
-                             self.embedding_dim,
-                             improved=self.improved)
+                             self.embedding_dim,)
         self.relu1 = nn.LeakyReLU()
 
 
@@ -26,7 +24,7 @@ class GCN(BaseNetwork):
         for _ in range(self.n_convolutions - 1):
             self.conv_layers.append(GCNConv(self.embedding_dim, 
                                             self.embedding_dim,
-                                            self.improved))
+                                            ))
 
 
         #graph embedding is the concatenation of the global mean and max pooling, thus 2*embedding_dim
