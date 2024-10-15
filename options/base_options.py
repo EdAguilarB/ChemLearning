@@ -167,12 +167,7 @@ class BaseOptions:
             help='Embedding dimension',
             )
         
-        self.parser.add_argument(
-            '--improved',
-            type=bool,
-            default=True,
-            help='Whether to use the improved version of the GCN',
-            )
+
         
         self.parser.add_argument(
             '--problem_type',
