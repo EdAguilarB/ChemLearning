@@ -1,4 +1,5 @@
 import streamlit as st
+import argparse
 import os
 import pandas as pd
 import json
@@ -6,30 +7,22 @@ import zipfile
 import io
 import torch
 import json
+import shutil
 
 # Assuming BaseOptions and the training function are already defined as per your original code.
 import plotly.figure_factory as ff
 
 from options.base_options import BaseOptions
 from scripts_experiments.train_GNN import train_GNNet
+from utils.dicts import short_to_long, long_to_short
 
 
-st.set_page_config(page_title="Train GNN", page_icon="🧪", layout="wide")
-
-terms_dict = {
-    "Train-Validation-Test Split": "tvt",
-    "Cross Validation": "cv",
-    "Nested Cross Validation": "ncv",
-    "Stratified Split": "stratified",
-    "Random Split": "random"
-}
-    
+st.set_page_config(page_title="Train GNN", page_icon="🧪", layout="wide")    
 
 
 
 # Initialize options
 opt = BaseOptions().parse()
-
 
 
 
@@ -73,20 +66,32 @@ Make sure to download these files at the end of the experiment! They contain the
 Once you've uploaded your dataset, configured the training settings, and are ready to go, start the training process. The app will guide you through setting the hyperparameters, and the model will begin learning from your data.
 """)
 
-best_hyperparams = st.file_uploader("Upload the best hyperparameters file if you did hyperparamter optimization", type="json")
+best_hyperparams = st.file_uploader("Upload the best hyperparameters file if you did hyperparamter optimization", type="zip")
 
-if best_hyperparams:
-    data = json.load(best_hyperparams)
+df = None
 
-    opt.embedding_dim = data['embedding_dim']
-    opt.n_convolutions = data['n_convolutions']
-    opt.readout_layers = data['readout_layers']
+if best_hyperparams is not None:
 
-    opt.lr = data['lr']
-    opt.early_stopping = data['early_stopping_patience']
-    opt.batch_size = data['batch_size']
+    with zipfile.ZipFile(io.BytesIO(best_hyperparams.read())) as z:
+        # Extract files
 
-    opt.epochs = data['epochs']
+        st.write("Extracted the following files:")
+        st.write(z.namelist())
+
+        json_file = [file for file in z.namelist() if file.endswith('.json')][0]
+
+        if json_file is not None:
+            with z.open(json_file) as f:
+                # Read the json file
+                data = json.load(f)
+                st.success("Loaded json file.")
+                opt = argparse.Namespace(**data)
+
+        with z.open(opt.filename, "r") as f:
+            # Load the model architecture
+            df = pd.read_csv(f)
+            st.success("Loaded data file.")
+
 
     st.success("Loaded best hyperparameters file.")
     st.warning("Please do not change the hyperparameters as now they have been overwritten to the ones found in the hyperparameter optimization process.")
@@ -96,29 +101,32 @@ if best_hyperparams:
 
 with st.expander('Step 1: Select CSV file with SMILES and target variable to model'):
 
-    csv_file = st.file_uploader("Choose a CSV file", type="csv")
+    if not best_hyperparams:
+        csv_file = st.file_uploader("Choose a CSV file", type="csv")
+        if csv_file:
+            df = pd.read_csv(csv_file)
 
     smiles_cols = []
-    if csv_file:
+    if isinstance(df, pd.DataFrame):
         st.markdown("**Preview CSV file**")
-        df = pd.read_csv(csv_file)
         st.write(df.head())
-        smiles_cols = st.multiselect("Select SMILES columns", options=df.columns.tolist())
+        smiles_cols = st.multiselect("Select SMILES columns", options=df.columns.tolist(), default=opt.mol_cols)
         st.write(f"Selected SMILES columns: {', '.join(smiles_cols)}" if smiles_cols else "No SMILES columns selected")
 
         graph_feats = {}
 
-        if st.checkbox("Include Graph-level features"):
+        graph_level = True if opt.graph_features else False
+        if st.checkbox("Include Graph-level features", value=graph_level):
 
-            graph_level_features = st.multiselect("Select graph-level features", options=df.columns.tolist())
+            graph_level_features = st.multiselect("Select graph-level features", options=df.columns.tolist(), default=opt.graph_features.keys() if opt.graph_features else None)
 
             st.write("Select the molecules which have the following features:")
 
 
             for feature in graph_level_features:
-                graph_feats[feature] = st.multiselect(feature, options=smiles_cols)
+                graph_feats[feature] = st.multiselect(feature, options=smiles_cols, default=opt.graph_features[feature])
 
-            one_hot_encode_feats = st.multiselect("Select features to one-hot encode", options=graph_level_features)
+            one_hot_encode_feats = st.multiselect("Select features to one-hot encode", options=graph_level_features, default=opt.ohe_graph_feat)
             ohe_pos_vals = {}
 
             for feature in one_hot_encode_feats:
@@ -133,10 +141,10 @@ with st.expander('Step 1: Select CSV file with SMILES and target variable to mod
             one_hot_encode_feats = None
             ohe_pos_vals = None
 
-
-        identifier_col = st.selectbox("Select column with the ID of each molecule", options=df.columns.tolist(), index=None)
+        cols_list = df.columns.tolist()
+        identifier_col = st.selectbox("Select column with the ID of each molecule", options=cols_list, index=cols_list.index(opt.mol_id_col) if opt.mol_id_col in cols_list else None)
         
-        target_col = st.selectbox("Select target column", options=df.columns.tolist(), index=None)
+        target_col = st.selectbox("Select target column", options=df.columns.tolist(), index=cols_list.index(opt.target_variable) if opt.target_variable in cols_list else None)
 
         if target_col and pd.api.types.is_numeric_dtype(df[target_col]):
             st.write(f"Target variable '{target_col}' is numeric")
@@ -164,7 +172,7 @@ with st.expander('Step 1: Select CSV file with SMILES and target variable to mod
                 n_classes = 1
 
         target_name = st.text_input("Target variable name", value=target_col)
-        target_units = st.text_input("Target variable units", value="kJ/mol")
+        target_units = st.text_input("Target variable units", value=opt.target_variable_units)
 
 
 
@@ -193,15 +201,18 @@ with st.expander('Step 1: Select CSV file with SMILES and target variable to mod
 
 
 with st.expander("Step 2: Set Data Splitting Options", expanded=False):
-    split_type = st.selectbox("Select Splitting Type", ["Train-Validation-Test Split", "Cross Validation", "Nested Cross Validation"])
+    split_type_opts = ["Train-Validation-Test Split", "Cross Validation", "Nested Cross Validation"]
+    split_type = st.selectbox("Select Splitting Type", split_type_opts, index=split_type_opts.index(short_to_long[opt.split_type]))
+
     if split_type == "Train-Validation-Test Split":
-        val_set_ratio = st.number_input("Validation set ratio", min_value= 0.001, max_value=1., value=0.2)
-        test_set_ratio = st.number_input("Test set ratio", min_value= 0.001, max_value=1., value=0.2)
+        val_set_ratio = st.number_input("Validation set ratio", min_value= 0.001, max_value=1., value=opt.val_size)
+        test_set_ratio = st.number_input("Test set ratio", min_value= 0.001, max_value=1., value=opt.test_size)
 
     elif split_type == "Cross Validation" or split_type == "Nested Cross Validation":
-        folds = st.number_input("Number of folds", min_value=3, max_value=10, value=5)
+        folds = st.number_input("Number of folds", min_value=3, max_value=10, value=opt.folds)
 
-    split_method = st.selectbox("Select Split Method", ["Stratified Split", "Random Split"])
+    split_method_opts = ["Stratified Split", "Random Split"]
+    split_method = st.selectbox("Select Split Method", split_method_opts, index=split_method_opts.index(short_to_long[opt.split_method]))
 
     if split_method == "Stratified Split":
             #TODO hacer lo de numero de tractos en que dividir la variable continua par el stratified
@@ -210,7 +221,14 @@ with st.expander("Step 2: Set Data Splitting Options", expanded=False):
 
 with st.expander("Step 3: Set Model Architecture Hyperparameters", expanded=False):
     embedding_dim = st.number_input("Embedding size", min_value=1, max_value=1024, value=opt.embedding_dim)
+
+    conv_operator_opts =  ['GCNConv', 'GATConv', 'SAGEConv', 'ChebConv']
+    conv_operator = st.selectbox("Select convolutional operators to be explored", options=conv_operator_opts, index=conv_operator_opts.index(short_to_long[opt.network_name]))
+
     n_convolutions = st.number_input("Number of convolutions", min_value=1, max_value=10, value=opt.n_convolutions)
+
+    pooling_opts = ['mean', 'max', 'sum', 'mean/max']
+    pooling = st.selectbox("Pooling method", pooling_opts, index=pooling_opts.index(opt.pooling)) 
     readout_layers = st.number_input("Number of readout layers", min_value=1, max_value=10, value=opt.readout_layers)
 
 
@@ -236,13 +254,13 @@ with st.expander("Step 4: Set Training Options", expanded=False):
 
 
 
-log_name = st.text_input("Give this run an experiment name", value="my_experiment")
+log_name = st.text_input("Give this run an experiment name", value=opt.experiment_name)
 
 
 
 
 # Apply button
-if csv_file and log_name and smiles_cols:
+if isinstance(df, pd.DataFrame) and log_name and smiles_cols:
 
     show_all = st.checkbox("Show all metrics for all training processes", value=True)
 
@@ -250,12 +268,17 @@ if csv_file and log_name and smiles_cols:
 
         # Update opt with user inputs
         opt.show_all = show_all
-        opt.filename = os.path.basename(csv_file.name)
+        opt.root = os.path.join("data", "datasets")
+        if not best_hyperparams:
+            opt.filename = os.path.basename(csv_file.name)
         opt.log_dir_results = os.path.join(log_name)
         opt.experiment_name = log_name
         opt.mol_cols = sorted(smiles_cols, key = str.lower) 
+
         opt.embedding_dim = embedding_dim
+        opt.network_name = long_to_short[conv_operator]
         opt.n_convolutions = n_convolutions
+        opt.pooling = pooling
         opt.readout_layers = readout_layers
 
         opt.lr = learning_rate
@@ -263,8 +286,8 @@ if csv_file and log_name and smiles_cols:
         opt.batch_size = batch_size
         opt.early_stopping = early_stopping
 
-        opt.split_type = terms_dict[split_type]
-        opt.split_method = terms_dict[split_method]
+        opt.split_type = long_to_short[split_type]
+        opt.split_method = long_to_short[split_method]
 
         opt.target_variable = target_col
         opt.target_variable_name = target_name
@@ -291,14 +314,14 @@ if csv_file and log_name and smiles_cols:
         model_arch = model[0]
 
         st.success(f"Training started successfully with the following configuration:\n\n"
-                    f"Data File: {csv_file.name}\n"
-                    f"Log Name: {log_name}\n"
                     f"Embedding Size: {embedding_dim}\n"
                     f"Number of Convolutions: {n_convolutions}\n"
                     f"Number of Readout Layers: {readout_layers}\n"
                     f"Number of Epochs: {epochs}\n"
                     f"Batch Size: {batch_size}\n"
                     f"Selected SMILES Columns: {', '.join(smiles_cols)}")
+        
+        shutil.rmtree(opt.root)
         
 
         json_data = vars(opt)    
