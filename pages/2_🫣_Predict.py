@@ -48,7 +48,6 @@ if experiment is not None:
     # Read the uploaded zip file
     with zipfile.ZipFile(io.BytesIO(experiment.read())) as z:
         # Extract files
-        z.extractall("extracted_directory")
         st.write("Extracted the following files:")
         st.write(z.namelist())
 

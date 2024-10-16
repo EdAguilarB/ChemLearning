@@ -42,12 +42,13 @@ For example, features like stereochemistry might need to be explicitly encoded, 
 ### Navigation
 
 To make your experience smoother, we’ve organized the platform into three key sections, accessible from the **left side menu**:
+1. **👀 Hyperparameter Opt**: This is an optional (but highly recommended) section. Here, you can search for the best hyperparameters to model your specific problem.
 
-1. **👩‍💻 Train GNN**: In this section, you can upload your dataset and configure the settings to train your GNN model. You will be able to adjust hyperparameters, track progress, and analyze the results.
+2. **👩‍💻 Train GNN**: In this section, you can upload your dataset and configure the settings to train your GNN model (if you didn't do hyperparameter optimization). You will be able to adjust hyperparameters, track progress, and analyze the results.
 
-2. **🫣 Predict**: After training your model, you can use this section to make predictions on new molecules, for which you don't know the property of interest. Simply upload a CSV file with the molecular structures, and the trained GNN will provide predictions for the desired property.
+3. **🫣 Predict**: After training your model, you can use this section to make predictions on new molecules, for which you don't know the property of interest. Simply upload a CSV file with the molecular structures, and the trained GNN will provide predictions for the desired property.
 
-3. **🕵️‍♀️ Explain GNN**: This section offers explainability tools that allow you to understand the rationale behind your GNN’s predictions. Using visualization techniques, you can see which molecular features influence predictions, giving you deeper insights into how the model interprets molecular data.
+4. **🕵️‍♀️ Explain GNN**: This section offers explainability tools that allow you to understand the rationale behind your GNN’s predictions. Using visualization techniques, you can see which molecular features influence predictions, giving you deeper insights into how the model interprets molecular data.
 
 ### Get Started!
 

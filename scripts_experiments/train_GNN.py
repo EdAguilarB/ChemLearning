@@ -98,7 +98,8 @@ def train_GNNet(opt, file) -> None:
             # Create the GNN model
             model = make_network(network_name = opt.network_name,
                                  opt = opt, 
-                                 n_node_features= data.num_node_features).to(device)
+                                 n_node_features= data.num_node_features,
+                                 pooling=opt.pooling).to(device)
             
             # Start the timer for the training
             start_time = time.time()

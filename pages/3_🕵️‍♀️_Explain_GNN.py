@@ -72,7 +72,6 @@ if experiment is not None:
     # Read the uploaded zip file
     with zipfile.ZipFile(io.BytesIO(experiment.read())) as z:
         # Extract files
-        z.extractall("extracted_directory")
         json_file = [file for file in z.namelist() if file.endswith('.json')][0]
 
         if json_file is not None:

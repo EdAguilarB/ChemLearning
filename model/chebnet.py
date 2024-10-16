@@ -1,17 +1,17 @@
 import torch
 import torch.nn as nn
 from model.networks import BaseNetwork
-from torch_geometric.nn import global_mean_pool as gap, global_max_pool as gmp, global_add_pool as gsp, GCNConv
+from torch_geometric.nn import global_mean_pool as gap, global_max_pool as gmp, global_add_pool as gsp, ChebConv
 import argparse
 
 
 
-class GCN(BaseNetwork):
+class ChebNet(BaseNetwork):
 
     def __init__(self, opt: argparse.Namespace, n_node_features:int, pooling:str):
         super().__init__(opt=opt, n_node_features=n_node_features, pooling=pooling)
 
-        self._name = "GCN"
+        self._name = "ChebNet"
 
         #First convolution and activation function
         self.linear = nn.Linear(self.n_node_features,
@@ -22,9 +22,10 @@ class GCN(BaseNetwork):
         #Convolutions
         self.conv_layers = nn.ModuleList([])
         for _ in range(self.n_convolutions):
-            self.conv_layers.append(GCNConv(self.embedding_dim, 
-                                            self.embedding_dim,
-                                            )
+            self.conv_layers.append(ChebConv(self.embedding_dim, 
+                                             self.embedding_dim,
+                                             K=2,
+                                             )
                                     )
 
 

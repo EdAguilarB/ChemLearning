@@ -7,17 +7,23 @@ from torch_geometric.seed import seed_everything
 
 class BaseNetwork(nn.Module):
     
-    def __init__(self, opt: argparse.Namespace, n_node_features:int):
+    def __init__(self, opt: argparse.Namespace, n_node_features:int, pooling:str):
         super().__init__()
         self._name = "BaseNetwork"
         self._opt = opt
         self.n_node_features = n_node_features
+        self.pooling = pooling
         self.n_classes = opt.n_classes
         self.n_convolutions = opt.n_convolutions
         self.embedding_dim = opt.embedding_dim  
         self.readout_layers = opt.readout_layers
         self._seed_everything(opt.global_seed)
         self.problem_type = opt.problem_type
+
+        if self.pooling == 'mean/max':
+            self.graph_embedding = self.embedding_dim*2
+        else:
+            self.graph_embedding = self.embedding_dim
 
     def forward(self):
         raise NotImplementedError

@@ -29,7 +29,7 @@ class BaseOptions:
         self.parser.add_argument(
             '--root', 
             type=str, 
-            default='data/datasets/rhcaa_learning',
+            default='data/datasets',
             help='path to the folder containing the csv files',
             )
         
@@ -59,14 +59,14 @@ class BaseOptions:
         self.parser.add_argument(
             '--target_variable',
             type=str,
-            default='%top',
+            default=None,
             help='target variable to predict',
             )
         
         self.parser.add_argument(
             '--target_variable_units',
             type=str,
-            default='kJ/mol',
+            default=None,
             help='target variable to predict',
             )
         
@@ -76,8 +76,14 @@ class BaseOptions:
             default=None,
             help='Column containing ID identifier of each entry',
             )
-
         
+        self.parser.add_argument(
+            '--mol_cols',
+            type=list,
+            default=None,
+            help='List of columns containing the smiles strings',
+            )
+
         self.parser.add_argument(
             '--graph_features',
             type=dict,
@@ -109,6 +115,13 @@ class BaseOptions:
             type=str,
             default='ncv',
             help='Type of split. Allowed values: tvt (train/val/test), cv (cross validation), or ncv (nested cross validation)',
+            )
+        
+        self.parser.add_argument(
+            '--pooling',
+            type=str,
+            default='mean',
+            help='Type of pooling',
             )
         
         self.parser.add_argument(

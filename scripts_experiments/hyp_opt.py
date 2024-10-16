@@ -2,6 +2,7 @@ import streamlit as st
 from ray.tune.schedulers import ASHAScheduler
 from ray.tune import CLIReporter
 import os
+import shutil
 from ray import tune
 from utils.hyp_opt_utils import train_model_ray
 from data.rhcaa import rhcaa_diene
@@ -10,18 +11,27 @@ from data.rhcaa import rhcaa_diene
 
 def run_tune(opt, config, file):
 
+    # config is for tuneable hyperparameters
+    # opt is for fixed hyperparameters
+
 
     log_dir = f"{opt.experiment_name}/{opt.filename[:-4]}/{opt.network_name}/results_hyp_opt"
 
     os.makedirs(log_dir, exist_ok=True)
 
+    print(opt.root)
+
+
+    # generates the graph if they don't exist
     _ = rhcaa_diene(opt=opt, 
                     filename=opt.filename, 
                     molcols=opt.mol_cols,
                     root=f'{opt.root}', 
                     file=file)
 
-    num_samples = 50
+
+
+    num_samples = 5
 
     scheduler = ASHAScheduler(
         time_attr="epoch",
@@ -36,6 +46,9 @@ def run_tune(opt, config, file):
         parameter_columns=["lr", "n_convolutions", "embedding_dim", "readout_layers", "batch_size"],
         metric_columns=["val_loss", "test_loss", "training_iteration"]
     )
+
+    st.write("Starting hyperparameter optimization...")
+    st.write("This may take a while. Please be patient.")
 
     result = tune.run(
         tune.with_parameters(train_model_ray, opt=opt, file=file),
@@ -58,7 +71,7 @@ def run_tune(opt, config, file):
 
     all_runs_df = result.results_df
 
-
+    shutil.rmtree(log_dir)
 
     return best_config, all_runs_df
 

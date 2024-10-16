@@ -24,15 +24,13 @@ class rhcaa_diene(reaction_graph):
         self.filename = filename
         self.mol_identifier_col = opt.mol_id_col
 
-        if self._include_fold:
+        columns = file.columns
 
-            columns = file.columns
-            if 'fold' not in columns:
-                self.split_data(root, filename, file, opt)
-            
-            root = os.path.join(root, opt.experiment_name, f'data')
+        self.split_data(root, filename, file, opt)
         
-            self.filename = filename[:-4] + f'_{opt.split_type}_{opt.split_method[:2]}' + filename[-4:]
+        root = os.path.join(root, opt.experiment_name, f'data')
+    
+        self.filename = filename[:-4] + f'_{opt.split_type}_{opt.split_method[:2]}' + filename[-4:]
 
         super().__init__(opt = opt, filename = self.filename, mol_cols = molcols, root=root, file=file)
 
@@ -133,7 +131,7 @@ class rhcaa_diene(reaction_graph):
                         smiles = all_smiles,
                         mol_names = mol_name,
                         idx = str(idx),
-                        fold = fold
+                        #fold = fold
                         ) 
             
             torch.save(data, 
