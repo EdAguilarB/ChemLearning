@@ -28,8 +28,8 @@ def calculate_metrics(
     if task == 'regression':
         metrics['R2'] = r2_score(y_true=y_true, y_pred=y_predicted)
         metrics['MAE'] = mean_absolute_error(y_true=y_true, y_pred=y_predicted)
-        metrics['RMSE'] = sqrt(mean_absolute_error(y_true=y_true, y_pred=y_predicted))  
         error = [(y_predicted[i]-y_true[i]) for i in range(len(y_true))]
+        metrics['RMSE'] = sqrt(np.mean([error[i]**2 for i in range(len(error))]))
         prctg_error = mean_absolute_percentage_error(y_true=y_true, y_pred=y_predicted) 
         metrics['Mean Bias Error'] = np.mean(error)
         metrics['Mean Absolute Percentage Error'] = np.mean(prctg_error)
