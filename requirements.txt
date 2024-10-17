@@ -19,7 +19,7 @@ PyQt5==5.15.11
 PyQt5-Qt5==5.15.14
 PyQt5_sip==12.15.0
 PyYAML
-ray==2.6.3
+ray
 rdkit>=2023.0.0
 scikit-learn
 streamlit==1.37.1
